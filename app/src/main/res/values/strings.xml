@@ -1,7 +1,9 @@
 <resources>
-    <string name="app_name">C2SNEW</string>
-    <string name="title_home">Home</string>
-    <string name="title_dashboard">Dashboard</string>
+    <string name="app_name">USBCamera</string>
+    <string name="title_home">View</string>
+    <string name="title_dashboard">Setting</string>
     <string name="title_notifications">Notifications</string>
     <string name="permission_tip" translatable="false">You have already denied permission access. Go to the Settings page to turn on permissions</string>
+    <string name="height">P</string>
+    <string name="width">Width</string>
 </resources>
