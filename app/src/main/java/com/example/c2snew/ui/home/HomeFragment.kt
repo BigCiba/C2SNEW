@@ -2,17 +2,19 @@ package com.example.c2snew.ui.home
 
 import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.lifecycle.ViewModelProvider
 import com.example.c2snew.R
-import com.example.c2snew.databinding.FragmentDashboardBinding
 import com.example.c2snew.databinding.FragmentHomeBinding
+import com.example.c2snew.databinding.FragmentNotificationsBinding
 import com.example.c2snew.ui.dashboard.DashboardViewModel
+import com.example.c2snew.ui.notifications.NotificationsViewModel
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
@@ -34,30 +36,27 @@ class HomeFragment : CameraFragment() {
     private var heightRecord : Int = 720
     private var toast : Boolean = false
     private lateinit var dashboardViewModel: DashboardViewModel
-    override fun initView() {
+//    private  lateinit var markChart: LineChart
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        mViewBinding = FragmentHomeBinding.inflate(inflater, container, false)
+        val root: View = mViewBinding.root
+
         // 在其他 Fragment 中获取共享的 ViewModel 实例
         dashboardViewModel = ViewModelProvider(requireActivity())[DashboardViewModel::class.java]
+
+        return root
+    }
+    override fun initView() {
+        val root: View = mViewBinding.root
+        val lineView = root.findViewById<LineView>(R.id.LineView)
+        val height = (dashboardViewModel.getHeight() ?: "0").toFloat()
+        lineView.setLineCoordinates(height)
         super.initView()
-//        val root = mViewBinding.root
-//
-//        val lineChart = initChart(root)
-//
-//        refreshChart(lineChart, processData(generateRandomByteArray(1280,720),1280,720))
     }
-    private fun generateRandomByteArray(width: Int, height: Int): ByteArray {
-        val random = Random()
-        val dataSize = width * height
-        val data = ByteArray(dataSize)
-
-        for (i in 0 until dataSize) {
-            // 生成随机字节值（0 到 255 之间的整数）
-            val randomByte = random.nextInt(256).toByte()
-            data[i] = randomByte
-        }
-
-        return data
-    }
-
 
     override fun initData() {
         super.initData()
@@ -85,7 +84,8 @@ class HomeFragment : CameraFragment() {
         ToastUtils.show("camera opened success")
 
         initChart(mViewBinding.root)
-
+//        initMarkChart(mViewBinding.root)
+//        drawLine()
         getCurrentCamera()?.addPreviewDataCallBack( object : IPreviewDataCallBack {
             override fun onPreviewData(
                 data: ByteArray?,
@@ -98,7 +98,7 @@ class HomeFragment : CameraFragment() {
                     val lineChart = root.findViewById<LineChart>(R.id.lineChart)
                     // 更新成实际相机的宽度
                     if (widthRecord != width) {
-                        Toast.makeText(context, "widthRecord,width:${width},height:${height}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "width:${width},height:${height},format:${format},length:${data.size}", Toast.LENGTH_SHORT).show()
                         widthRecord = width
                         val xAxis = lineChart.xAxis
                         xAxis.axisMaximum = width.toFloat()
@@ -111,7 +111,7 @@ class HomeFragment : CameraFragment() {
                         // 创建并显示一个短暂的 Toast 消息
 //                        Toast.makeText(context, "width:${width},height:${height}", Toast.LENGTH_SHORT).show()
                     }
-                    refreshChart(lineChart, processData(data,width,height))
+                    refreshChart(lineChart, processData(data,width,height,format))
 
                 } else {
                     // 如果 data 为空，执行相应的处理
@@ -124,7 +124,6 @@ class HomeFragment : CameraFragment() {
     override fun getCameraView(): IAspectRatio {
         return AspectRatioTextureView(requireContext())
     }
-
 
     override fun getCameraViewContainer(): ViewGroup {
         return mViewBinding.cameraViewContainer
@@ -141,42 +140,128 @@ class HomeFragment : CameraFragment() {
 
 
     // 图表
-    private fun processData(byteArray: ByteArray, imageWidth: Int, imageHeight: Int):  ArrayList<Entry> {
+    private fun processData(byteArray: ByteArray, imageWidth: Int, imageHeight: Int,format: IPreviewDataCallBack.DataFormat):  ArrayList<Entry> {
 
         // 将 ByteArray 转换为平均值数据
-        val averagedData = calculateAveragePixelValues(byteArray,imageWidth,imageHeight)
+        val averagedData = calculateAverageBrightnessValues(byteArray,imageWidth,imageHeight,format)
 
         // 创建一个 LineDataSet，并设置数据点和样式
         val dataPoints = ArrayList<Entry>()
-        for (x in averagedData.indices step 20) {
+        for (x in averagedData.indices ) {
             dataPoints.add(Entry(x.toFloat(), averagedData[x]))
         }
         return dataPoints;
     }
-    private fun calculateAveragePixelValues(data: ByteArray, imageWidth: Int, imageHeight: Int): FloatArray {
-        val averages = FloatArray(imageWidth) // 用于存储每个 X 轴上的平均值
+    private fun calculateAverageBrightnessValues(data: ByteArray, imageWidth: Int, imageHeight: Int,format: IPreviewDataCallBack.DataFormat): FloatArray {
+        val averages = FloatArray(imageWidth) // 用于存储每个 X 轴上的平均亮度值
         val height = (dashboardViewModel.getHeight() ?: "0").toInt()
         val width = (dashboardViewModel.getWidth() ?: "0").toInt()
         val min = max(height - width, 0)
         val max = min(height + width, imageHeight)
-        for (x in 0 until imageWidth) {
-            var sum = 0f // 使用浮点数类型
-            for (y in min until max) {
-                // 计算像素在数组中的索引
-                val index = x + y * imageWidth
-                // 提取像素值（假设每个像素占用一个字节）
-                val pixelValue = data[index].toInt() and 0xFF
-                // 累加像素值
-                sum += pixelValue.toFloat() // 使用浮点数类型
+        if (format == IPreviewDataCallBack.DataFormat.RGBA) {
+            val bytesPerPixel = 4
+
+            for (x in 0 until imageWidth) {
+                var sum = 0f // 使用浮点数类型
+                for (y in min until max) {
+                    // 计算像素在数组中的索引
+                    val index = (x + y * imageWidth) * bytesPerPixel
+
+                    // 提取像素的RGBA值
+                    val r = data[index].toInt() and 0xFF
+                    val g = data[index + 1].toInt() and 0xFF
+                    val b = data[index + 2].toInt() and 0xFF
+
+                    // 计算亮度值
+                    val brightness = 0.299 * r + 0.587 * g + 0.114 * b
+
+                    // 累加亮度值
+                    sum += brightness.toFloat() // 使用浮点数类型
+                }
+                // 计算平均亮度值
+                val average = sum / (max - min)
+                averages[x] = average
             }
-            // 计算平均值
-            val average = sum / (max - min)
-            averages[x] = average
+        } else {
+            val bytesPerPixel = 2
+            for (x in 0 until imageWidth) {
+                var sum = 0f // 使用浮点数类型
+                for (y in min until max) {
+                    // 计算像素在数组中的索引
+                    val index = (x + y * imageWidth) * bytesPerPixel
+
+                    // 提取亮度
+                    val y = data[index].toInt() and 0xFF
+
+                    // 累加亮度值
+                    sum += y.toFloat() // 使用浮点数类型
+                }
+                // 计算平均亮度值
+                val average = sum / (max - min)
+                averages[x] = average
+            }
         }
+
 
         return averages
     }
 
+    private  fun initMarkChart(root:View) {
+//        val lineChart = root.findViewById<LineChart>(R.id.markChart)
+//        val xAxis = lineChart.xAxis
+//        val yAxis = lineChart.axisLeft
+//        val rightYAxis = lineChart.axisRight
+//        yAxis.isEnabled = false
+//        xAxis.isEnabled = false
+//        rightYAxis.isEnabled = false
+//
+//        xAxis.axisMinimum = 0f
+//        xAxis.axisMaximum = 100f
+//
+//        yAxis.axisMinimum = 0f
+//        yAxis.axisMaximum = heightRecord.toFloat()
+//
+//        lineChart.setDrawBorders(false)
+//
+//        lineChart.description.isEnabled = false
+//        val legend = lineChart.legend
+//        legend.isEnabled = false
+//        markChart = lineChart
+    }
+    private fun drawLine() {
+//        val height = (dashboardViewModel.getHeight() ?: "0").toFloat()
+//        val width = (dashboardViewModel.getWidth() ?: "0").toFloat()
+//        val centerDataPoints = ArrayList<Entry>()
+//        centerDataPoints.add(Entry(0f, height))
+//        centerDataPoints.add(Entry(100f, height))
+//        val centerDataSet = LineDataSet(centerDataPoints, "")
+//        centerDataSet.color = Color.RED
+//        centerDataSet.lineWidth = 1f
+//        centerDataSet.setDrawCircles(false)
+//        centerDataSet.setDrawValues(false)
+//
+//        val topDataPoints = ArrayList<Entry>()
+//        topDataPoints.add(Entry(0f, height + width))
+//        topDataPoints.add(Entry(100f, height + width))
+//        val topDataSet = LineDataSet(topDataPoints, "")
+//        topDataSet.color = Color.BLUE
+//        topDataSet.lineWidth = 0.5f
+//        topDataSet.setDrawCircles(false)
+//        topDataSet.setDrawValues(false)
+//
+//        val bottomDataPoints = ArrayList<Entry>()
+//        bottomDataPoints.add(Entry(0f, height - width))
+//        bottomDataPoints.add(Entry(100f, height - width))
+//        val bottomDataSet = LineDataSet(bottomDataPoints, "")
+//        bottomDataSet.color = Color.BLUE
+//        bottomDataSet.lineWidth = 0.5f
+//        bottomDataSet.setDrawCircles(false)
+//        bottomDataSet.setDrawValues(false)
+//
+//        val lineData = LineData(centerDataSet, topDataSet,bottomDataSet)
+//        markChart.data = lineData
+//        markChart.invalidate()
+    }
 
     private fun initChart(root: View): LineChart {
         val lineChart = root.findViewById<LineChart>(R.id.lineChart)

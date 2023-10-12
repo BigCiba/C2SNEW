@@ -12,18 +12,28 @@
         android:orientation="vertical"
         android:layout_margin="8dp"
         tools:ignore="MissingConstraints">
-
-        <FrameLayout
-            android:id="@+id/cameraViewContainer"
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="0.5"
-            android:background="@color/black"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" >
-        </FrameLayout>
+            android:layout_weight="0.5">
+            <FrameLayout
+                android:id="@+id/cameraViewContainer"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@color/black"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:ignore="MissingClass">
+            </FrameLayout>
+
+            <com.example.c2snew.ui.home.LineView
+                android:id="@+id/LineView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"/>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
 
 
         <com.github.mikephil.charting.charts.LineChart
