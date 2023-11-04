@@ -9,12 +9,33 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.ViewModelProvider
 import com.example.c2snew.R
 import com.example.c2snew.databinding.FragmentHomeBinding
 import com.example.c2snew.databinding.FragmentNotificationsBinding
 import com.example.c2snew.ui.dashboard.DashboardViewModel
 import com.example.c2snew.ui.notifications.NotificationsViewModel
+import com.example.c2snew.ui.page.MainPage
+import com.example.c2snew.ui.page.SettingPage
+import com.example.c2snew.ui.theme.Material3Theme
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
@@ -37,6 +58,7 @@ class HomeFragment : CameraFragment() {
     private var toast : Boolean = false
     private lateinit var dashboardViewModel: DashboardViewModel
 //    private  lateinit var markChart: LineChart
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -47,7 +69,82 @@ class HomeFragment : CameraFragment() {
 
         // 在其他 Fragment 中获取共享的 ViewModel 实例
         dashboardViewModel = ViewModelProvider(requireActivity())[DashboardViewModel::class.java]
+        val composeView = root.findViewById<ComposeView>(R.id.composeView)
+        composeView.setContent {
+            Material3Theme {
+                val navList = listOf(
+                    Pair("Main", R.drawable.baseline_camera_24),
+                    Pair("Raw", R.drawable.baseline_image_24),
+                    Pair("Main", R.drawable.baseline_ssid_chart_24),
+                    Pair("Setting", R.drawable.baseline_settings_24),
+                )
+                var navIndex by remember {
+                    mutableIntStateOf(0)
+                }
 
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    topBar = {
+                        TopAppBar(
+                            title = {
+                                Text(
+                                    navList[navIndex].first,
+                                    maxLines = 1,
+                                )
+                            },
+                            navigationIcon = {
+                                IconButton(onClick = { /* doSomething() */ }) {
+                                    Icon(
+                                        painter = painterResource(id = navList[navIndex].second),
+                                        contentDescription = navList[navIndex].first
+                                    )
+                                }
+                            },
+                            actions = {
+                                if (navIndex < 3) {
+                                    IconButton(onClick = { /* doSomething() */ }) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.play),
+                                            contentDescription = "Play"
+                                        )
+                                    }
+                                    IconButton(onClick = { /* doSomething() */ }) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.baseline_camera_alt_24),
+                                            contentDescription = "Camera"
+                                        )
+                                    }
+                                    IconButton(onClick = { /* doSomething() */ }) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.save),
+                                            contentDescription = "Save"
+                                        )
+                                    }
+                                }
+                            }
+                        )
+                    },
+                    content = { innerPadding->
+                        Box(modifier = Modifier.padding(innerPadding)) {
+                            MainPage(navIndex==0)
+                            SettingPage(navIndex==3)
+                        }
+                    },
+                    bottomBar = {
+                        NavigationBar {
+                            navList.forEachIndexed { index, item ->
+                                NavigationBarItem(
+                                    icon = { Icon(painter = painterResource(id = item.second), contentDescription = item.first) },
+                                    label = { Text(item.first) },
+                                    selected = index == navIndex,
+                                    onClick = {navIndex = index }
+                                )
+                            }
+                        }
+                    }
+                )
+            }
+        }
         return root
     }
     override fun initView() {
