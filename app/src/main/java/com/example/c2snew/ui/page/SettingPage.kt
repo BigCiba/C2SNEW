@@ -1,8 +1,11 @@
 package com.example.c2snew.ui.page
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -26,25 +29,39 @@ import com.example.c2snew.SettingViewModel
 
 @Composable
 fun SettingPage(visible:Boolean) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .graphicsLayer(alpha = if (visible) 1f else 0f, translationX = if (visible) 0f else 1000f),
+            .graphicsLayer(
+                alpha = if (visible) 1f else 0f,
+                translationX = if (visible) 0f else 1000f
+            ),
 //                                verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+//        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        SettingTag("Spectrum")
-        SettingInput("Center")
-        SettingInput("Width")
-        SettingTag("Wavelength calibration")
-        SettingInput("a0")
-        SettingInput("a1")
-        SettingInput("a2")
-        SettingInput("a3")
-        SettingTag("Camera")
-        SettingInput("Exposure")
-        SettingInput("FPS")
-        SettingInput("Gain")
+        LazyColumn(modifier = Modifier.fillMaxSize(),horizontalAlignment = Alignment.CenterHorizontally) {
+            item {
+                SettingTag("Spectrum")
+
+                SettingInput("Center")
+                SettingInput("Width")
+            }
+
+            item {
+                SettingTag("Wavelength calibration")
+
+                SettingInput("a0")
+                SettingInput("a1")
+                SettingInput("a2")
+                SettingInput("a3")
+            }
+            item {
+                SettingTag("Camera")
+                SettingInput("Exposure")
+                SettingInput("FPS")
+                SettingInput("Gain")
+            }
+        }
     }
 }
 @Composable

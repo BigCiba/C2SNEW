@@ -5,50 +5,21 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".ui.home.HomeFragment">
+
+    <FrameLayout
+        android:id="@+id/cameraViewContainer"
+        android:layout_width="320dp"
+        android:layout_height="240dp"
+        android:background="@color/black"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:ignore="MissingClass">
+    </FrameLayout>
+
     <androidx.compose.ui.platform.ComposeView
         android:id="@+id/composeView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:orientation="vertical"
-        android:layout_margin="8dp"
-        tools:ignore="MissingConstraints">
-        <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="0.5">
-            <FrameLayout
-                android:id="@+id/cameraViewContainer"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@color/black"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toTopOf="parent"
-                tools:ignore="MissingClass">
-            </FrameLayout>
-
-            <com.example.c2snew.ui.home.LineView
-                android:id="@+id/LineView"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"/>
-        </androidx.constraintlayout.widget.ConstraintLayout>
-
-
-
-        <com.github.mikephil.charting.charts.LineChart
-            android:id="@+id/lineChart"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="0.5"
-            tools:ignore="MissingClass" />
-        <View
-            android:layout_width="match_parent"
-            android:layout_weight="0.1"
-            android:layout_height="0dp" /> <!-- 空白视图，设置想要的间隔高度 -->
-
-    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

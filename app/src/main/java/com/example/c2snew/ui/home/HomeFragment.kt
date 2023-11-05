@@ -1,13 +1,11 @@
 package com.example.c2snew.ui.home
 
-import android.graphics.Color
 import android.os.Bundle
+import android.os.CountDownTimer
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
-import android.widget.TextView
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,28 +26,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.ViewModelProvider
+import co.yml.charts.common.model.Point
+import com.example.c2snew.CameraViewModel
 import com.example.c2snew.R
 import com.example.c2snew.databinding.FragmentHomeBinding
-import com.example.c2snew.databinding.FragmentNotificationsBinding
 import com.example.c2snew.ui.dashboard.DashboardViewModel
-import com.example.c2snew.ui.notifications.NotificationsViewModel
 import com.example.c2snew.ui.page.MainPage
 import com.example.c2snew.ui.page.SettingPage
 import com.example.c2snew.ui.theme.Material3Theme
-import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.data.Entry
-import com.github.mikephil.charting.data.LineData
-import com.github.mikephil.charting.data.LineDataSet
 import com.jiangdg.ausbc.MultiCameraClient
 import com.jiangdg.ausbc.base.CameraFragment
 import com.jiangdg.ausbc.callback.ICameraStateCallBack
 import com.jiangdg.ausbc.callback.IPreviewDataCallBack
+import com.jiangdg.ausbc.camera.bean.CameraRequest
 import com.jiangdg.ausbc.utils.ToastUtils
 import com.jiangdg.ausbc.widget.AspectRatioTextureView
 import com.jiangdg.ausbc.widget.IAspectRatio
-import java.util.Random
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.random.Random
+
 
 class HomeFragment : CameraFragment() {
     private lateinit var mViewBinding: FragmentHomeBinding
@@ -57,7 +54,10 @@ class HomeFragment : CameraFragment() {
     private var heightRecord : Int = 720
     private var toast : Boolean = false
     private lateinit var dashboardViewModel: DashboardViewModel
-//    private  lateinit var markChart: LineChart
+    private lateinit var cameraViewModel: CameraViewModel
+    private lateinit var countDownTimer: CountDownTimer
+    private var isTimerRunning = false
+    private var chartData: List<Point> = listOf(Point(0f,0f))
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -69,6 +69,7 @@ class HomeFragment : CameraFragment() {
 
         // 在其他 Fragment 中获取共享的 ViewModel 实例
         dashboardViewModel = ViewModelProvider(requireActivity())[DashboardViewModel::class.java]
+        cameraViewModel = ViewModelProvider(requireActivity())[CameraViewModel::class.java]
         val composeView = root.findViewById<ComposeView>(R.id.composeView)
         composeView.setContent {
             Material3Theme {
@@ -102,7 +103,12 @@ class HomeFragment : CameraFragment() {
                             },
                             actions = {
                                 if (navIndex < 3) {
-                                    IconButton(onClick = { /* doSomething() */ }) {
+                                    IconButton(onClick = {
+                                        val dataPoint = (0..1000).map {
+                                            Point(it.toFloat(), Random.nextFloat() * 255f)
+                                        }
+                                        cameraViewModel.setData(dataPoint)
+                                    }) {
                                         Icon(
                                             painter = painterResource(id = R.drawable.play),
                                             contentDescription = "Play"
@@ -126,7 +132,7 @@ class HomeFragment : CameraFragment() {
                     },
                     content = { innerPadding->
                         Box(modifier = Modifier.padding(innerPadding)) {
-                            MainPage(navIndex==0)
+                            MainPage(navIndex==0, cameraViewModel)
                             SettingPage(navIndex==3)
                         }
                     },
@@ -148,16 +154,17 @@ class HomeFragment : CameraFragment() {
         return root
     }
     override fun initView() {
-        val root: View = mViewBinding.root
-        val lineView = root.findViewById<LineView>(R.id.LineView)
-        val height = (dashboardViewModel.getHeight() ?: "0").toFloat()
-        lineView.setLineCoordinates(height)
+        // 直接在数据回调中更新数据会导致崩溃，估计是死循环了，所以用计时器异步更新
+        countDownTimer = object : CountDownTimer(Long.MAX_VALUE, 30) {
+            override fun onTick(millisUntilFinished: Long) {
+                cameraViewModel.setData(chartData)
+            }
+            override fun onFinish() {
+            }
+        }
         super.initView()
     }
 
-    override fun initData() {
-        super.initData()
-    }
     override fun onCameraState(
         self: MultiCameraClient.ICamera,
         code: ICameraStateCallBack.State,
@@ -174,15 +181,24 @@ class HomeFragment : CameraFragment() {
     }
 
     private fun handleCameraClosed() {
-        ToastUtils.show("camera closed success")
+        Toast.makeText(context, "USB Camera Closed", Toast.LENGTH_SHORT).show()
+        if (isTimerRunning) {
+            isTimerRunning = false
+            countDownTimer.cancel()
+        }
     }
-
+    override fun getCameraRequest(): CameraRequest {
+        return CameraRequest.Builder()
+            .setPreviewWidth(640)  // initial camera preview width
+            .setPreviewHeight(480) // initial camera preview height
+            .create()
+    }
     private fun handleCameraOpened() {
-        ToastUtils.show("camera opened success")
-
-        initChart(mViewBinding.root)
-//        initMarkChart(mViewBinding.root)
-//        drawLine()
+        if (!isTimerRunning) {
+            Toast.makeText(context, "USB Camera Open", Toast.LENGTH_SHORT).show()
+            isTimerRunning = true
+            countDownTimer.start()
+        }
         getCurrentCamera()?.addPreviewDataCallBack( object : IPreviewDataCallBack {
             override fun onPreviewData(
                 data: ByteArray?,
@@ -191,28 +207,21 @@ class HomeFragment : CameraFragment() {
                 format: IPreviewDataCallBack.DataFormat
             ) {
                 if (data != null) {
-                    val root = mViewBinding.root
-                    val lineChart = root.findViewById<LineChart>(R.id.lineChart)
                     // 更新成实际相机的宽度
                     if (widthRecord != width) {
-                        Toast.makeText(context, "width:${width},height:${height},format:${format},length:${data.size}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "width:${width},height:${height}", Toast.LENGTH_SHORT).show()
                         widthRecord = width
-                        val xAxis = lineChart.xAxis
-                        xAxis.axisMaximum = width.toFloat()
                     }
 //                    if (heightRecord != height) {
 //                        heightRecord = height
 //                    }
-                    if (!toast) {
-                        toast = true
-                        // 创建并显示一个短暂的 Toast 消息
-//                        Toast.makeText(context, "width:${width},height:${height}", Toast.LENGTH_SHORT).show()
-                    }
-                    refreshChart(lineChart, processData(data,width,height,format))
+
+                    val averagedData = processData(data,width,height,format)
+//                    cameraViewModel.setData(averagedData)
+                    chartData = averagedData
 
                 } else {
                     // 如果 data 为空，执行相应的处理
-                    ToastUtils.show("onPreviewData: Data is null")
                 }
             }
         })
@@ -232,29 +241,25 @@ class HomeFragment : CameraFragment() {
     }
 
     override fun getGravity(): Int = Gravity.TOP
-
-
-
-
     // 图表
-    private fun processData(byteArray: ByteArray, imageWidth: Int, imageHeight: Int,format: IPreviewDataCallBack.DataFormat):  ArrayList<Entry> {
-
-        // 将 ByteArray 转换为平均值数据
-        val averagedData = calculateAverageBrightnessValues(byteArray,imageWidth,imageHeight,format)
-
-        // 创建一个 LineDataSet，并设置数据点和样式
-        val dataPoints = ArrayList<Entry>()
+    private fun processData(byteArray: ByteArray, imageWidth: Int, imageHeight: Int,format: IPreviewDataCallBack.DataFormat): List<Point> {
+        val averagedData = calculateAverageBrightnessValues(byteArray, imageWidth, imageHeight, format)
+        var dataPoints = listOf<Point>()
         for (x in averagedData.indices ) {
-            dataPoints.add(Entry(x.toFloat(), averagedData[x]))
+            dataPoints = dataPoints+Point(x.toFloat(),averagedData[x])
         }
         return dataPoints;
     }
     private fun calculateAverageBrightnessValues(data: ByteArray, imageWidth: Int, imageHeight: Int,format: IPreviewDataCallBack.DataFormat): FloatArray {
         val averages = FloatArray(imageWidth) // 用于存储每个 X 轴上的平均亮度值
-        val height = (dashboardViewModel.getHeight() ?: "0").toInt()
-        val width = (dashboardViewModel.getWidth() ?: "0").toInt()
-        val min = max(height - width, 0)
-        val max = min(height + width, imageHeight)
+//        val height = (dashboardViewModel.getHeight() ?: "0").toInt()
+//        val width = (dashboardViewModel.getWidth() ?: "0").toInt()
+        val height = 0
+        val width = 0
+//        val min = max(height - width, 0)
+//        val max = min(height + width, imageHeight)
+        val min = imageHeight / 2 - 20
+        val max = imageHeight / 2 + 20
         if (format == IPreviewDataCallBack.DataFormat.RGBA) {
             val bytesPerPixel = 4
 
@@ -302,110 +307,6 @@ class HomeFragment : CameraFragment() {
 
         return averages
     }
-
-    private  fun initMarkChart(root:View) {
-//        val lineChart = root.findViewById<LineChart>(R.id.markChart)
-//        val xAxis = lineChart.xAxis
-//        val yAxis = lineChart.axisLeft
-//        val rightYAxis = lineChart.axisRight
-//        yAxis.isEnabled = false
-//        xAxis.isEnabled = false
-//        rightYAxis.isEnabled = false
-//
-//        xAxis.axisMinimum = 0f
-//        xAxis.axisMaximum = 100f
-//
-//        yAxis.axisMinimum = 0f
-//        yAxis.axisMaximum = heightRecord.toFloat()
-//
-//        lineChart.setDrawBorders(false)
-//
-//        lineChart.description.isEnabled = false
-//        val legend = lineChart.legend
-//        legend.isEnabled = false
-//        markChart = lineChart
-    }
-    private fun drawLine() {
-//        val height = (dashboardViewModel.getHeight() ?: "0").toFloat()
-//        val width = (dashboardViewModel.getWidth() ?: "0").toFloat()
-//        val centerDataPoints = ArrayList<Entry>()
-//        centerDataPoints.add(Entry(0f, height))
-//        centerDataPoints.add(Entry(100f, height))
-//        val centerDataSet = LineDataSet(centerDataPoints, "")
-//        centerDataSet.color = Color.RED
-//        centerDataSet.lineWidth = 1f
-//        centerDataSet.setDrawCircles(false)
-//        centerDataSet.setDrawValues(false)
-//
-//        val topDataPoints = ArrayList<Entry>()
-//        topDataPoints.add(Entry(0f, height + width))
-//        topDataPoints.add(Entry(100f, height + width))
-//        val topDataSet = LineDataSet(topDataPoints, "")
-//        topDataSet.color = Color.BLUE
-//        topDataSet.lineWidth = 0.5f
-//        topDataSet.setDrawCircles(false)
-//        topDataSet.setDrawValues(false)
-//
-//        val bottomDataPoints = ArrayList<Entry>()
-//        bottomDataPoints.add(Entry(0f, height - width))
-//        bottomDataPoints.add(Entry(100f, height - width))
-//        val bottomDataSet = LineDataSet(bottomDataPoints, "")
-//        bottomDataSet.color = Color.BLUE
-//        bottomDataSet.lineWidth = 0.5f
-//        bottomDataSet.setDrawCircles(false)
-//        bottomDataSet.setDrawValues(false)
-//
-//        val lineData = LineData(centerDataSet, topDataSet,bottomDataSet)
-//        markChart.data = lineData
-//        markChart.invalidate()
-    }
-
-    private fun initChart(root: View): LineChart {
-        val lineChart = root.findViewById<LineChart>(R.id.lineChart)
-        val xAxis = lineChart.xAxis
-        val yAxis = lineChart.axisLeft
-
-        xAxis.axisMinimum = 0f
-        xAxis.axisMaximum = widthRecord.toFloat()
-
-        yAxis.axisMinimum = 0f
-        yAxis.axisMaximum = 255f
-
-        val rightYAxis = lineChart.axisRight
-
-        rightYAxis.isEnabled = false
-        lineChart.setDrawBorders(true)
-
-        lineChart.setBorderColor(Color.BLACK)
-        lineChart.setBorderWidth(1f)
-
-        lineChart.description.isEnabled = false
-        val legend = lineChart.legend
-        legend.isEnabled = false
-
-        return lineChart
-    }
-
-    private fun refreshChart(lineChart: LineChart, dataPoints: List<Entry>) {
-        if (dataPoints.isEmpty()) {
-            return
-        }
-
-        val dataSet = LineDataSet(dataPoints, "")
-
-        dataSet.color = Color.BLUE
-        dataSet.lineWidth = 2f
-//        dataSet.setCircleColor(Color.RED)
-//        dataSet.setCircleRadius(5f)
-        dataSet.setDrawCircles(false)
-        dataSet.setDrawValues(false)
-
-        val lineData = LineData(dataSet)
-
-        lineChart.data = lineData
-        lineChart.invalidate()
-    }
-
     override fun onDestroyView() {
         super.onDestroyView()
     }
