@@ -1,11 +1,18 @@
 package com.example.c2snew.ui.home
 
+import android.app.ActionBar.LayoutParams
+import android.graphics.BitmapFactory
+import android.graphics.ImageFormat
+import android.graphics.Rect
+import android.graphics.YuvImage
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,15 +23,21 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.painterResource
+import androidx.core.view.marginTop
 import androidx.lifecycle.ViewModelProvider
 import co.yml.charts.common.model.Point
 import com.example.c2snew.CameraViewModel
@@ -34,7 +47,6 @@ import com.example.c2snew.ui.dashboard.DashboardViewModel
 import com.example.c2snew.ui.page.MainPage
 import com.example.c2snew.ui.page.SettingPage
 import com.example.c2snew.ui.theme.Material3Theme
-import com.github.mikephil.charting.data.Entry
 import com.jiangdg.ausbc.MultiCameraClient
 import com.jiangdg.ausbc.base.CameraFragment
 import com.jiangdg.ausbc.callback.ICameraStateCallBack
@@ -43,8 +55,8 @@ import com.jiangdg.ausbc.camera.bean.CameraRequest
 import com.jiangdg.ausbc.utils.ToastUtils
 import com.jiangdg.ausbc.widget.AspectRatioTextureView
 import com.jiangdg.ausbc.widget.IAspectRatio
-import kotlin.math.max
-import kotlin.math.min
+import kotlinx.coroutines.launch
+import java.io.ByteArrayOutputStream
 import kotlin.random.Random
 
 
@@ -58,6 +70,8 @@ class HomeFragment : CameraFragment() {
     private lateinit var countDownTimer: CountDownTimer
     private var isTimerRunning = false
     private var chartData: List<Point> = listOf(Point(0f,0f))
+    private var bitmap: ImageBitmap = ImageBitmap(width = 10, height = 10)
+    private var imgRaw: ByteArray = ByteArray(0)
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -67,6 +81,7 @@ class HomeFragment : CameraFragment() {
         mViewBinding = FragmentHomeBinding.inflate(inflater, container, false)
         val root: View = mViewBinding.root
 
+        val frameLayout = root.findViewById<FrameLayout>(R.id.cameraViewContainer)
         // 在其他 Fragment 中获取共享的 ViewModel 实例
         dashboardViewModel = ViewModelProvider(requireActivity())[DashboardViewModel::class.java]
         cameraViewModel = ViewModelProvider(requireActivity())[CameraViewModel::class.java]
@@ -82,9 +97,14 @@ class HomeFragment : CameraFragment() {
                 var navIndex by remember {
                     mutableIntStateOf(0)
                 }
+                val scope = rememberCoroutineScope()
+                val snackbarHostState = remember { SnackbarHostState() }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
+                    snackbarHost = {
+                        SnackbarHost(hostState = snackbarHostState)
+                    },
                     topBar = {
                         TopAppBar(
                             title = {
@@ -120,7 +140,11 @@ class HomeFragment : CameraFragment() {
                                             contentDescription = "Camera"
                                         )
                                     }
-                                    IconButton(onClick = { /* doSomething() */ }) {
+                                    IconButton(onClick = {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Snackbar")
+                                        }
+                                    }) {
                                         Icon(
                                             painter = painterResource(id = R.drawable.save),
                                             contentDescription = "Save"
@@ -143,7 +167,26 @@ class HomeFragment : CameraFragment() {
                                     icon = { Icon(painter = painterResource(id = item.second), contentDescription = item.first) },
                                     label = { Text(item.first) },
                                     selected = index == navIndex,
-                                    onClick = {navIndex = index }
+                                    onClick = {
+                                        navIndex = index
+                                        when (navIndex) {
+                                            0 -> {
+                                                frameLayout.visibility = View.VISIBLE;
+                                                frameLayout.rotation = 0f
+                                                frameLayout.scaleX = 1f
+                                                frameLayout.scaleY = 1f
+                                            }
+                                            1 -> {
+                                                frameLayout.visibility = View.VISIBLE;
+                                                frameLayout.rotation = 90f
+                                                frameLayout.scaleX = 1.4f
+                                                frameLayout.scaleY = 1.4f
+                                                frameLayout.layout(0,230,0,0)
+                                            }
+                                            2 -> frameLayout.visibility = View.GONE;
+                                            3 -> frameLayout.visibility = View.GONE;
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -207,10 +250,53 @@ class HomeFragment : CameraFragment() {
                 format: IPreviewDataCallBack.DataFormat
             ) {
                 if (data != null) {
+//                    val imgBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+//                    val bytesPerPixel = 4
+//                    var imgBitmap = ImageBitmap(width,height,ImageBitmapConfig.Argb8888)
+
+//                    for (x in 0 until width) {
+//                        var sum = 0f // 使用浮点数类型
+//                        for (y in 0 until height) {
+//                            // 计算像素在数组中的索引
+//                            val index = (x + y * width) * bytesPerPixel
+//
+//                            // 提取像素的RGBA值
+//                            val r = data[index].toInt() and 0xFF
+//                            val g = data[index + 1].toInt() and 0xFF
+//                            val b = data[index + 2].toInt() and 0xFF
+//                            val a = data[index + 2].toInt() and 0xFF
+//
+//                            imgBitmap.setPixel(index % width, index / width, Color.argb(a, r, g, b))
+////                            intArray[index] = Color.argb(a, r, g, b)
+//                        }
+//                    }
+//                    val imageBitmap = ImageDecoder.createSource(data)
+//                    val a = ImageDecoder.decodeBitmap(imageBitmap)
+//                    bitmap = a.asImageBitmap()
+
                     // 更新成实际相机的宽度
                     if (widthRecord != width) {
-                        Toast.makeText(context, "width:${width},height:${height}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "width:${width},height:${height},size:${data.size}", Toast.LENGTH_SHORT).show()
                         widthRecord = width
+
+//                        val yuvimage = YuvImage(
+//                            data,
+//                            ImageFormat.FLEX_RGBA_8888,
+//                            width,
+//                            height,
+//                            null
+//                        )
+//                        val baos = ByteArrayOutputStream()
+//                        yuvimage.compressToJpeg(
+//                            Rect(0, 0, width, height),
+//                            80,
+//                            baos
+//                        )
+//                        val  jdata = baos.toByteArray()
+//                        val bmp  = BitmapFactory.decodeByteArray(jdata, 0, jdata.size);
+//                        if (bmp!=null) {
+//                            bitmap = bmp.asImageBitmap()
+//                        }
                     }
 //                    if (heightRecord != height) {
 //                        heightRecord = height
@@ -218,8 +304,9 @@ class HomeFragment : CameraFragment() {
 
                     val averagedData = processData(data,width,height,format)
 //                    cameraViewModel.setData(averagedData)
-                    chartData = averagedData
 
+                    chartData = averagedData
+                    imgRaw = data
                 } else {
                     // 如果 data 为空，执行相应的处理
                 }

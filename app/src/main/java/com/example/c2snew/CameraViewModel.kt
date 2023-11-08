@@ -14,6 +14,7 @@ import java.util.Random
 
 class CameraViewModel : ViewModel(){
     private val _dataLiveData = MutableLiveData<List<Point>>()
+    private val _bitmapLiveData = MutableLiveData<ImageBitmap>()
 
     val dataLiveData: LiveData<List<Point>>
         get() = _dataLiveData
@@ -21,14 +22,12 @@ class CameraViewModel : ViewModel(){
     fun setData(data: List<Point>) {
         _dataLiveData.value = data
     }
-    val center = MutableLiveData<Int>(1)
-    val chartEntryModelProducer = ChartEntryModelProducer(List(4) { entryOf(it, kotlin.random.Random(1).nextFloat() * 16f) })
-    val image = MutableLiveData<ImageBitmap?>(null)
-    private val _chartData = MutableLiveData<List<FloatEntry>>()
-    fun setChartData(chartData: List<FloatEntry>) {
-        _chartData.value = chartData
-    }
-    fun getChartData(): List<FloatEntry>? {
-        return _chartData.value
+
+
+    val bitmapLiveData: LiveData<ImageBitmap>
+        get() = _bitmapLiveData
+
+    fun setBitMapData(data: ImageBitmap) {
+        _bitmapLiveData.value = data
     }
 }
