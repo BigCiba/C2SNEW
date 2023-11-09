@@ -42,10 +42,12 @@ import androidx.lifecycle.ViewModelProvider
 import co.yml.charts.common.model.Point
 import com.example.c2snew.CameraViewModel
 import com.example.c2snew.R
+import com.example.c2snew.SettingViewModel
 import com.example.c2snew.databinding.FragmentHomeBinding
 import com.example.c2snew.ui.dashboard.DashboardViewModel
 import com.example.c2snew.ui.page.MainPage
 import com.example.c2snew.ui.page.SettingPage
+import com.example.c2snew.ui.page.Spectrum
 import com.example.c2snew.ui.theme.Material3Theme
 import com.jiangdg.ausbc.MultiCameraClient
 import com.jiangdg.ausbc.base.CameraFragment
@@ -67,6 +69,7 @@ class HomeFragment : CameraFragment() {
     private var toast : Boolean = false
     private lateinit var dashboardViewModel: DashboardViewModel
     private lateinit var cameraViewModel: CameraViewModel
+    private lateinit var settingViewModel: SettingViewModel
     private lateinit var countDownTimer: CountDownTimer
     private var isTimerRunning = false
     private var chartData: List<Point> = listOf(Point(0f,0f))
@@ -85,20 +88,28 @@ class HomeFragment : CameraFragment() {
         // 在其他 Fragment 中获取共享的 ViewModel 实例
         dashboardViewModel = ViewModelProvider(requireActivity())[DashboardViewModel::class.java]
         cameraViewModel = ViewModelProvider(requireActivity())[CameraViewModel::class.java]
+        settingViewModel = ViewModelProvider(requireActivity())[SettingViewModel::class.java]
+        val lineView = root.findViewById<LineView>(R.id.LineView)
         val composeView = root.findViewById<ComposeView>(R.id.composeView)
         composeView.setContent {
             Material3Theme {
                 val navList = listOf(
                     Pair("Main", R.drawable.baseline_camera_24),
                     Pair("Raw", R.drawable.baseline_image_24),
-                    Pair("Main", R.drawable.baseline_ssid_chart_24),
+                    Pair("Spectrum", R.drawable.baseline_ssid_chart_24),
                     Pair("Setting", R.drawable.baseline_settings_24),
                 )
                 var navIndex by remember {
                     mutableIntStateOf(0)
                 }
+                var startPage by remember {
+                    mutableIntStateOf(0)
+                }
                 val scope = rememberCoroutineScope()
                 val snackbarHostState = remember { SnackbarHostState() }
+
+
+                val viewModel = remember { SettingViewModel() }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -124,10 +135,15 @@ class HomeFragment : CameraFragment() {
                             actions = {
                                 if (navIndex < 3) {
                                     IconButton(onClick = {
-                                        val dataPoint = (0..1000).map {
-                                            Point(it.toFloat(), Random.nextFloat() * 255f)
+//                                        val dataPoint = (0..1000).map {
+//                                            Point(it.toFloat(), Random.nextFloat() * 255f)
+//                                        }
+//                                        cameraViewModel.setData(dataPoint)
+                                        scope.launch {
+                                            settingViewModel.getValue("Center")
+                                                ?.let { snackbarHostState.showSnackbar(it) }
                                         }
-                                        cameraViewModel.setData(dataPoint)
+
                                     }) {
                                         Icon(
                                             painter = painterResource(id = R.drawable.play),
@@ -157,7 +173,8 @@ class HomeFragment : CameraFragment() {
                     content = { innerPadding->
                         Box(modifier = Modifier.padding(innerPadding)) {
                             MainPage(navIndex==0, cameraViewModel)
-                            SettingPage(navIndex==3)
+                            Spectrum(navIndex==2, cameraViewModel)
+                            SettingPage(navIndex==3,settingViewModel)
                         }
                     },
                     bottomBar = {
@@ -171,20 +188,37 @@ class HomeFragment : CameraFragment() {
                                         navIndex = index
                                         when (navIndex) {
                                             0 -> {
+                                                lineView.visibility = View.VISIBLE;
                                                 frameLayout.visibility = View.VISIBLE;
                                                 frameLayout.rotation = 0f
                                                 frameLayout.scaleX = 1f
                                                 frameLayout.scaleY = 1f
+                                                val center = settingViewModel.getValue("Center")
+                                                if (center != null && center != "") {
+                                                    scope.launch {
+                                                        snackbarHostState.showSnackbar(center)
+                                                    }
+                                                    lineView.setLineCoordinates(center.toFloat())
+                                                }
                                             }
                                             1 -> {
-                                                frameLayout.visibility = View.VISIBLE;
-                                                frameLayout.rotation = 90f
-                                                frameLayout.scaleX = 1.4f
-                                                frameLayout.scaleY = 1.4f
-                                                frameLayout.layout(0,230,0,0)
+//                                                frameLayout.visibility = View.VISIBLE;
+//                                                frameLayout.rotation = 90f
+//                                                frameLayout.scaleX = 1.4f
+//                                                frameLayout.scaleY = 1.4f
+//                                                frameLayout.layout(0,230,0,0)
+
+                                                lineView.visibility = View.GONE;
+                                                frameLayout.visibility = View.GONE
                                             }
-                                            2 -> frameLayout.visibility = View.GONE;
-                                            3 -> frameLayout.visibility = View.GONE;
+                                            2 -> {
+                                                lineView.visibility = View.GONE;
+                                                frameLayout.visibility = View.GONE
+                                            };
+                                            3 -> {
+                                                lineView.visibility = View.GONE;
+                                                frameLayout.visibility = View.GONE
+                                            };
                                         }
                                     }
                                 )

@@ -14,12 +14,24 @@
 
     <FrameLayout
         android:id="@+id/cameraViewContainer"
-        android:layout_width="320dp"
-        android:layout_height="240dp"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
         android:background="@color/black"
-        android:layout_marginTop="130dp"
+        app:layout_constraintDimensionRatio="H,4:3"
+        android:layout_marginTop="112dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
     </FrameLayout>
+
+    <com.example.c2snew.ui.home.LineView
+        android:id="@+id/LineView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintDimensionRatio="H,4:3"
+        android:layout_marginTop="112dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"/>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

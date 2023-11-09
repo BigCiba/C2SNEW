@@ -26,9 +26,10 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import com.example.c2snew.SettingViewModel
+import com.example.c2snew.ui.home.LineView
 
 @Composable
-fun SettingPage(visible:Boolean) {
+fun SettingPage(visible:Boolean,settingViewModel:SettingViewModel) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -43,39 +44,38 @@ fun SettingPage(visible:Boolean) {
             item {
                 SettingTag("Spectrum")
 
-                SettingInput("Center")
-                SettingInput("Width")
+                SettingInput("Center", settingViewModel)
+                SettingInput("Width", settingViewModel)
             }
 
             item {
                 SettingTag("Wavelength calibration")
 
-                SettingInput("a0")
-                SettingInput("a1")
-                SettingInput("a2")
-                SettingInput("a3")
+                SettingInput("a0", settingViewModel)
+                SettingInput("a1", settingViewModel)
+                SettingInput("a2", settingViewModel)
+                SettingInput("a3", settingViewModel)
             }
             item {
                 SettingTag("Camera")
-                SettingInput("Exposure")
-                SettingInput("FPS")
-                SettingInput("Gain")
+                SettingInput("Exposure", settingViewModel)
+                SettingInput("FPS", settingViewModel)
+                SettingInput("Gain", settingViewModel)
             }
         }
     }
 }
 @Composable
-fun SettingInput(name: String) {
+fun SettingInput(name: String,settingViewModel:SettingViewModel) {
     // 在组件范围内持有 ViewModel
-    val viewModel = remember { SettingViewModel() }
-    var text by rememberSaveable { mutableStateOf(viewModel.getValue(name)) }
+    var text by rememberSaveable { mutableStateOf(settingViewModel.getValue(name)) }
     text?.let { it ->
         OutlinedTextField(
             value = it,
             maxLines = 1,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             onValueChange = {
-                viewModel.setValue(name, it)
+                settingViewModel.setValue(name, it)
                 text = it
             },
             label = { Text(name) }

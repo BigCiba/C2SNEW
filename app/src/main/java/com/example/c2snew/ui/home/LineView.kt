@@ -8,7 +8,7 @@ import android.view.View
 
 class LineView(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
     private val paint = Paint()
-    private var height = 0f
+    private var height = 100f
 
     init {
         paint.color = resources.getColor(android.R.color.holo_red_light) // 设置线的颜色
