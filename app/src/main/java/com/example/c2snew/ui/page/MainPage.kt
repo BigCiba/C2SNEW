@@ -1,7 +1,6 @@
 package com.example.c2snew.ui.page
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,9 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.unit.dp
 import co.yml.charts.axis.AxisData
 import co.yml.charts.common.model.Point
@@ -35,10 +32,6 @@ import co.yml.charts.ui.linechart.model.LinePlotData
 import co.yml.charts.ui.linechart.model.LineStyle
 import co.yml.charts.ui.linechart.model.ShadowUnderLine
 import com.example.c2snew.CameraViewModel
-import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
-import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
-import com.patrykandpatrick.vico.compose.chart.Chart
-import com.patrykandpatrick.vico.core.entry.entryModelOf
 
 @SuppressLint("RememberReturnType")
 @Composable
@@ -46,21 +39,8 @@ fun MainPage(visible:Boolean, viewModel: CameraViewModel) {
     val titles = listOf("Pixel", "W1", "W2")
     var state by remember { mutableIntStateOf(0) }
 
-    val pointsData by viewModel.dataLiveData.observeAsState(initial = listOf(Point(0f,0f)))
-//    val bitmapData by viewModel.bitmapLiveData.observeAsState(initial = ImageBitmap(width = 20, height = 20))
-    val bitmapData = ImageBitmap(width = 20, height = 20)
-
-    val buffer = IntArray(200 * 200)
-    for (y in 0 until 100) {
-        for (x in 0 until 100) {
-            val index = x + y * 4
-            buffer[index] = 255
-            buffer[index + 1] = 255
-            buffer[index + 2] = 255
-            buffer[index + 3] = 255
-        }
-    }
-    bitmapData.readPixels(buffer,0,0,20,20)
+    val pointsData by viewModel.chartPointList.observeAsState(initial = listOf(Point(0f,0f)))
+    val historyData by viewModel.historyList.observeAsState(initial = emptyList())
 
     val steps = 1
 //    val pointsData: List<Point> = listOf(Point(0f, 40f), Point(1f, 90f), Point(2f, 0f), Point(3f, 60f), Point(4f, 10f))
@@ -107,39 +87,55 @@ fun MainPage(visible:Boolean, viewModel: CameraViewModel) {
             .fillMaxWidth()
             .aspectRatio(4f / 3f)
             .background(Color.Black)
-        ) {
-            Image(modifier = Modifier
-                .fillMaxWidth(),
-                painter = BitmapPainter(bitmapData),
-                contentDescription = "Image")
-        }
-//        Chart(
-//            chart = lineChart(),
-//            model = entryModelOf(4f, 12f, 8f, 16f),
-//            startAxis = rememberStartAxis(),
-//            bottomAxis = rememberBottomAxis(),
-//        )
+        )
         LineChart(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(4f / 3f),
             lineChartData = LineChartData(
                 linePlotData = LinePlotData(
-                    lines = listOf(
-                        Line(
-                            dataPoints = pointsData,
-                            LineStyle(
-                                color = MaterialTheme.colorScheme.secondary,
-                                width = 4f
-                            ),
-//                            IntersectionPoint(),
-//                            SelectionHighlightPoint(),
-//                            ShadowUnderLine(),
-//                            SelectionHighlightPopUp()
-
-                            shadowUnderLine = ShadowUnderLine()
+//                    lines = listOf(
+//                        Line(
+//                            dataPoints = pointsData,
+//                            LineStyle(
+//                                color = MaterialTheme.colorScheme.secondary,
+//                                width = 4f
+//                            ),
+////                            IntersectionPoint(),
+////                            SelectionHighlightPoint(),
+////                            ShadowUnderLine(),
+////                            SelectionHighlightPopUp()
+//
+//                            shadowUnderLine = ShadowUnderLine()
+//                        )
+//                    ),
+                    lines = mutableListOf<Line>().apply {
+                        // 添加主要数据集
+                        add(
+                            Line(
+                                dataPoints = pointsData,
+                                LineStyle(
+                                    color = MaterialTheme.colorScheme.primary,
+                                    width = 4f
+                                ),
+//                                shadowUnderLine = ShadowUnderLine()
+                            )
                         )
-                    ),
+
+                        // 添加历史数据集
+                        historyData.forEachIndexed { index, data ->
+                            add(
+                                Line(
+                                    dataPoints = data,
+                                    LineStyle(
+                                        color = getLineColor(index),
+                                        width = 4f
+                                    ),
+//                                    shadowUnderLine = ShadowUnderLine()
+                                )
+                            )
+                        }
+                    }
                 ),
                 xAxisData = xAxisData,
                 yAxisData = yAxisData,
@@ -150,4 +146,20 @@ fun MainPage(visible:Boolean, viewModel: CameraViewModel) {
             )
         )
     }
+}
+
+// 辅助函数，获取不同历史数据集的颜色
+fun getLineColor(index: Int): Color {
+    val colors = listOf(
+        Color.Blue,
+        Color.Cyan,
+        Color.Green,
+        Color(0xFF8BC34A),
+        Color.Red,
+        Color(0xFFFF9800),
+        Color(0xFF9C27B0),
+        Color(0xFF9C27B0)
+        // 可以根据需要添加更多颜色
+    )
+    return colors.getOrElse(index % colors.size) { Color.Gray }
 }

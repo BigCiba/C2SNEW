@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -59,6 +60,8 @@ import com.jiangdg.ausbc.widget.AspectRatioTextureView
 import com.jiangdg.ausbc.widget.IAspectRatio
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.random.Random
 
 
@@ -75,6 +78,8 @@ class HomeFragment : CameraFragment() {
     private var chartData: List<Point> = listOf(Point(0f,0f))
     private var bitmap: ImageBitmap = ImageBitmap(width = 10, height = 10)
     private var imgRaw: ByteArray = ByteArray(0)
+
+    private var playing: Boolean = false
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -102,8 +107,8 @@ class HomeFragment : CameraFragment() {
                 var navIndex by remember {
                     mutableIntStateOf(0)
                 }
-                var startPage by remember {
-                    mutableIntStateOf(0)
+                var play by remember {
+                    mutableStateOf<Boolean>(playing)
                 }
                 val scope = rememberCoroutineScope()
                 val snackbarHostState = remember { SnackbarHostState() }
@@ -135,22 +140,22 @@ class HomeFragment : CameraFragment() {
                             actions = {
                                 if (navIndex < 3) {
                                     IconButton(onClick = {
-//                                        val dataPoint = (0..1000).map {
-//                                            Point(it.toFloat(), Random.nextFloat() * 255f)
-//                                        }
-//                                        cameraViewModel.setData(dataPoint)
-                                        scope.launch {
-                                            settingViewModel.getValue("Center")
-                                                ?.let { snackbarHostState.showSnackbar(it) }
-                                        }
-
+                                        Play()
+                                        play = playing
                                     }) {
                                         Icon(
-                                            painter = painterResource(id = R.drawable.play),
+                                            painter = painterResource(id = if (play) R.drawable.pause else R.drawable.play),
                                             contentDescription = "Play"
                                         )
                                     }
-                                    IconButton(onClick = { /* doSomething() */ }) {
+                                    IconButton(onClick = {
+//                                        测试用
+                                        val testHeight = Random.nextFloat() * 255f
+                                        val dataPoint = (0..1000).map {
+                                            Point(it.toFloat(), testHeight)
+                                        }
+                                        cameraViewModel.saveHistory(dataPoint)
+                                    }) {
                                         Icon(
                                             painter = painterResource(id = R.drawable.baseline_camera_alt_24),
                                             contentDescription = "Camera"
@@ -194,11 +199,9 @@ class HomeFragment : CameraFragment() {
                                                 frameLayout.scaleX = 1f
                                                 frameLayout.scaleY = 1f
                                                 val center = settingViewModel.getValue("Center")
-                                                if (center != null && center != "") {
-                                                    scope.launch {
-                                                        snackbarHostState.showSnackbar(center)
-                                                    }
-                                                    lineView.setLineCoordinates(center.toFloat())
+                                                val width = settingViewModel.getValue("Width")
+                                                if (center != null && center != "" && width != null && width != "") {
+                                                    lineView.setLineCoordinates(center.toFloat(),width.toFloat())
                                                 }
                                             }
                                             1 -> {
@@ -239,7 +242,22 @@ class HomeFragment : CameraFragment() {
             override fun onFinish() {
             }
         }
-        super.initView()
+//        super.initView()
+    }
+    fun Play() {
+        if (getCurrentCamera() != null ) {
+            if (isTimerRunning) {
+                Toast.makeText(context, "Pause", Toast.LENGTH_SHORT).show()
+                isTimerRunning = false
+                playing = false
+                countDownTimer.cancel()
+            } else {
+                Toast.makeText(context, "Play", Toast.LENGTH_SHORT).show()
+                isTimerRunning = true
+                playing = true
+                countDownTimer.start()
+            }
+        }
     }
 
     override fun onCameraState(
@@ -261,6 +279,7 @@ class HomeFragment : CameraFragment() {
         Toast.makeText(context, "USB Camera Closed", Toast.LENGTH_SHORT).show()
         if (isTimerRunning) {
             isTimerRunning = false
+            playing = false
             countDownTimer.cancel()
         }
     }
@@ -274,6 +293,7 @@ class HomeFragment : CameraFragment() {
         if (!isTimerRunning) {
             Toast.makeText(context, "USB Camera Open", Toast.LENGTH_SHORT).show()
             isTimerRunning = true
+            playing = true
             countDownTimer.start()
         }
         getCurrentCamera()?.addPreviewDataCallBack( object : IPreviewDataCallBack {
@@ -373,14 +393,14 @@ class HomeFragment : CameraFragment() {
     }
     private fun calculateAverageBrightnessValues(data: ByteArray, imageWidth: Int, imageHeight: Int,format: IPreviewDataCallBack.DataFormat): FloatArray {
         val averages = FloatArray(imageWidth) // 用于存储每个 X 轴上的平均亮度值
-//        val height = (dashboardViewModel.getHeight() ?: "0").toInt()
-//        val width = (dashboardViewModel.getWidth() ?: "0").toInt()
-        val height = 0
-        val width = 0
-//        val min = max(height - width, 0)
-//        val max = min(height + width, imageHeight)
-        val min = imageHeight / 2 - 20
-        val max = imageHeight / 2 + 20
+        val height = settingViewModel.getValue("Center")?.toInt() ?: 0
+        val width = settingViewModel.getValue("Width")?.toInt() ?: 0
+//        val height = 0
+//        val width = 0
+        val min = max(height - width, 0)
+        val max = min(height + width, imageHeight)
+//        val min = imageHeight / 2 - 20
+//        val max = imageHeight / 2 + 20
         if (format == IPreviewDataCallBack.DataFormat.RGBA) {
             val bytesPerPixel = 4
 
