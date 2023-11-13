@@ -154,7 +154,7 @@ class HomeFragment : CameraFragment() {
                                         val dataPoint = (0..1000).map {
                                             Point(it.toFloat(), testHeight)
                                         }
-                                        cameraViewModel.saveHistory(dataPoint)
+                                        cameraViewModel.saveHistory(chartData)
                                     }) {
                                         Icon(
                                             painter = painterResource(id = R.drawable.baseline_camera_alt_24),
@@ -242,7 +242,7 @@ class HomeFragment : CameraFragment() {
             override fun onFinish() {
             }
         }
-//        super.initView()
+        super.initView()
     }
     fun Play() {
         if (getCurrentCamera() != null ) {
@@ -360,7 +360,6 @@ class HomeFragment : CameraFragment() {
 //                    cameraViewModel.setData(averagedData)
 
                     chartData = averagedData
-                    imgRaw = data
                 } else {
                     // 如果 data 为空，执行相应的处理
                 }
@@ -422,7 +421,10 @@ class HomeFragment : CameraFragment() {
                     sum += brightness.toFloat() // 使用浮点数类型
                 }
                 // 计算平均亮度值
-                val average = sum / (max - min)
+                var average = 0f
+                if (max - min != 0) {
+                    average =  sum / (max - min)
+                }
                 averages[x] = average
             }
         } else {
