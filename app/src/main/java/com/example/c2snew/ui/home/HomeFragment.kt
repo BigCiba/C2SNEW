@@ -242,7 +242,7 @@ class HomeFragment : CameraFragment() {
             override fun onFinish() {
             }
         }
-        super.initView()
+//        super.initView()
     }
     fun Play() {
         if (getCurrentCamera() != null ) {
