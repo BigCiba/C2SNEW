@@ -88,16 +88,16 @@ fun HorizontalLineChart(
             }
             // 图例
             if (lines.size > 1) {
-                lines.forEachIndexed {lineIndex, points ->
+                lines.forEachIndexed { lineIndex, _ ->
                     drawText(
                         textMeasurer,
                         "L${lineIndex + 1}",
-                        topLeft = Offset(offset.x +chartSize.width - 140f, offset.y + 20f + 42f * lineIndex)
+                        topLeft = Offset(offset.x + 30f, offset.y + 20f + 42f * lineIndex)
                     )
                     drawLine(
                         color = getLineColor(lineIndex),
-                        start = Offset(offset.x +chartSize.width - 80f, offset.y + 40f + 42f * lineIndex),
-                        end = Offset(offset.x +chartSize.width - 20f, offset.y + 40f + 42f * lineIndex),
+                        start = Offset(offset.x + 90f, offset.y + 40f + 42f * lineIndex),
+                        end = Offset(offset.x + 130f, offset.y + 40f + 42f * lineIndex),
                         strokeWidth = 2.dp.toPx(),
                     )
                 }

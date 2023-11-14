@@ -7,6 +7,7 @@ import android.graphics.Rect
 import android.graphics.YuvImage
 import android.os.Bundle
 import android.os.CountDownTimer
+import android.os.Environment
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -40,6 +41,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.view.marginTop
 import androidx.lifecycle.ViewModelProvider
 import co.yml.charts.common.model.Point
@@ -52,7 +56,9 @@ import com.example.c2snew.ui.dashboard.DashboardViewModel
 import com.example.c2snew.ui.page.MainPage
 import com.example.c2snew.ui.page.SettingPage
 import com.example.c2snew.ui.page.Spectrum
+import com.example.c2snew.ui.page.wavelengthCalibration
 import com.example.c2snew.ui.theme.Material3Theme
+import com.jiangdg.ausbc.CameraClient
 import com.jiangdg.ausbc.MultiCameraClient
 import com.jiangdg.ausbc.base.CameraFragment
 import com.jiangdg.ausbc.callback.ICameraStateCallBack
@@ -63,8 +69,13 @@ import com.jiangdg.ausbc.widget.AspectRatioTextureView
 import com.jiangdg.ausbc.widget.IAspectRatio
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.pow
 import kotlin.random.Random
 
 
@@ -94,6 +105,7 @@ class HomeFragment : CameraFragment() {
 
         val frameLayout = root.findViewById<FrameLayout>(R.id.cameraViewContainer)
         val horizontalFrameLayout = root.findViewById<FrameLayout>(R.id.horizontalCameraViewContainer)
+
         // 在其他 Fragment 中获取共享的 ViewModel 实例
         dashboardViewModel = ViewModelProvider(requireActivity())[DashboardViewModel::class.java]
         cameraViewModel = ViewModelProvider(requireActivity())[CameraViewModel::class.java]
@@ -155,10 +167,10 @@ class HomeFragment : CameraFragment() {
                                     }
                                     IconButton(onClick = {
 //                                        测试用
-                                        val testHeight = Random.nextFloat() * 255f
-                                        val dataPoint = (0..1000).map {
-                                            Point(it.toFloat(), testHeight)
-                                        }
+//                                        val testHeight = Random.nextFloat() * 255f
+//                                        val dataPoint = (0..1000).map {
+//                                            Point(it.toFloat(), testHeight)
+//                                        }
                                         cameraViewModel.saveHistory(chartData)
                                     }) {
                                         Icon(
@@ -193,12 +205,82 @@ class HomeFragment : CameraFragment() {
                             SettingPage(navIndex==3,settingViewModel)
                         }
                         when {
-                            // ...
                             openAlertDialog.value -> {
                                 SaveDialog(
                                     onDismissRequest = { openAlertDialog.value = false },
                                     onConfirmation = {
                                         openAlertDialog.value = false
+                                        // 指定保存文件的路径
+                                        val downloadFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                                        val currentTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
+                                        val filePath = File(downloadFolder, "spectrochip/${it}-${currentTime}.csv").absolutePath
+                                        val pointsData = cameraViewModel.chartPointList.value
+                                        val historyData = cameraViewModel.historyList.value
+                                        val combinedData: List<List<Point>> = mutableListOf<List<Point>>().apply {
+                                            if (pointsData != null) {
+                                                if (pointsData.isNotEmpty()) {
+                                                    add(pointsData)
+                                                }
+                                            }
+                                            if (historyData != null) {
+                                                if (historyData.isNotEmpty()) {
+                                                    addAll(historyData)
+                                                }
+                                            }
+                                        }
+                                        if (combinedData.isNotEmpty()) {
+                                            val sa0 = settingViewModel.getValue("a0")
+                                            val sa1 = settingViewModel.getValue("a1")
+                                            val sa2 = settingViewModel.getValue("a2")
+                                            val sa3 = settingViewModel.getValue("a3")
+                                            var a0 = 0f
+                                            var a1 = 0f
+                                            var a2 = 0f
+                                            var a3 = 0f
+                                            if (sa0 != "" && sa1 != "" && sa2 != "" && sa3 != "" && sa0 != null && sa1 != null && sa2 != null && sa3 != null ) {
+                                                a0 = sa0.toFloat()
+                                                a1 = sa1.toFloat()
+                                                a2 = sa2.toFloat()
+                                                a3 = sa3.toFloat()
+                                            }
+                                            val csvContent = StringBuilder()
+
+                                            // 添加 CSV 文件的标题行
+                                            csvContent.append("Pixel")
+                                            if (a0 != 0f) {
+                                                csvContent.append(",Wavelength")
+                                            }
+                                            // 添加样本的列名
+                                            for (i in 1..combinedData.size) {
+                                                csvContent.append(",Sample$i")
+                                            }
+                                            csvContent.appendln()
+                                            // 遍历每个点，将其坐标添加到 CSV 内容中
+                                            val maxDataSize = combinedData.maxOfOrNull { it.size } ?: 0
+                                            for (pixelIndex in 0 until maxDataSize) {
+                                                // 添加 Pixel 列数据
+                                                val pixel = combinedData.firstOrNull()?.getOrNull(pixelIndex)?.x?.toInt() ?: 0
+                                                var wavelength = 0f
+                                                csvContent.append(pixel.toString())
+                                                if (a0 != 0f) {
+                                                    wavelength = a0 + a1 * pixel.toFloat() + a2 * pixel.toFloat().pow(2) + a3 * pixel.toFloat().pow(3)
+                                                    csvContent.append(",$wavelength")
+                                                }
+                                                // 添加样本列数据
+                                                for (sampleIndex in 0 until combinedData.size) {
+                                                    val sampleData = combinedData[sampleIndex]
+                                                    val yValue = sampleData.getOrNull(pixelIndex)?.y ?: ""
+                                                    csvContent.append(", $yValue")
+                                                }
+                                                csvContent.appendln()
+                                            }
+                                            val directory = File(filePath).parentFile
+                                            if (!directory.exists()) {
+                                                directory.mkdirs() // 创建目录及其父目录（如果不存在）
+                                            }
+                                            // 将 CSV 内容写入文件
+                                            File(filePath).writeText(csvContent.toString())
+                                        }
                                     },
                                     dialogTitle = "Save file",
                                 )
@@ -218,7 +300,15 @@ class HomeFragment : CameraFragment() {
                                             0 -> {
                                                 lineView.visibility = View.VISIBLE;
                                                 frameLayout.visibility = View.VISIBLE;
-                                                horizontalFrameLayout.visibility = View.GONE
+
+                                                val layoutParams = frameLayout.layoutParams as ViewGroup.MarginLayoutParams
+                                                layoutParams.height = 0
+                                                layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+                                                layoutParams.topMargin = (112f * resources.displayMetrics.density).toInt()
+                                                frameLayout.layoutParams = layoutParams
+                                                frameLayout.rotation = 0f
+                                                frameLayout.requestLayout()
+
                                                 val center = settingViewModel.getValue("Center")
                                                 val width = settingViewModel.getValue("Width")
                                                 if (center != null && center != "" && width != null && width != "") {
@@ -228,13 +318,19 @@ class HomeFragment : CameraFragment() {
                                                 if (gain != null && gain != "") {
                                                     setGain(gain.toInt())
                                                 }
-                                                cameraContainer = mViewBinding.cameraViewContainer
                                             }
                                             1 -> {
-                                                horizontalFrameLayout.visibility = View.VISIBLE
+                                                val layoutParams = frameLayout.layoutParams as ViewGroup.MarginLayoutParams
+                                                layoutParams.width = frameLayout.width * 8 / 5
+                                                layoutParams.height = frameLayout.width
+                                                layoutParams.topMargin = (180f * resources.displayMetrics.density).toInt()
+                                                frameLayout.layoutParams = layoutParams
+                                                frameLayout.rotation = 90f
+                                                frameLayout.requestLayout()
+
+                                                frameLayout.visibility = View.VISIBLE
+
                                                 lineView.visibility = View.GONE;
-                                                frameLayout.visibility = View.GONE
-                                                cameraContainer = mViewBinding.horizontalCameraViewContainer
                                             }
                                             2 -> {
                                                 lineView.visibility = View.GONE;
@@ -275,11 +371,13 @@ class HomeFragment : CameraFragment() {
                 isTimerRunning = false
                 playing = false
                 countDownTimer.cancel()
+//                closeCamera()
             } else {
                 Toast.makeText(context, "Play", Toast.LENGTH_SHORT).show()
                 isTimerRunning = true
                 playing = true
                 countDownTimer.start()
+//                openCamera()
             }
         }
     }
@@ -320,6 +418,7 @@ class HomeFragment : CameraFragment() {
             playing = true
             countDownTimer.start()
         }
+        getCameraRequest().isCaptureRawImage = true
         getCurrentCamera()?.addPreviewDataCallBack( object : IPreviewDataCallBack {
             override fun onPreviewData(
                 data: ByteArray?,
@@ -354,7 +453,7 @@ class HomeFragment : CameraFragment() {
 
                     // 更新成实际相机的宽度
                     if (widthRecord != width) {
-                        Toast.makeText(context, "width:${width},height:${height},size:${data.size}", Toast.LENGTH_SHORT).show()
+//                        Toast.makeText(context, "width:${width},height:${height},size:${data.size}", Toast.LENGTH_SHORT).show()
                         widthRecord = width
 
 //                        val yuvimage = YuvImage(

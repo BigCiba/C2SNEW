@@ -20,6 +20,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -32,31 +37,33 @@ import androidx.compose.ui.window.Dialog
 @Composable
 fun SaveDialog(
     onDismissRequest: () -> Unit,
-    onConfirmation: () -> Unit,
+    onConfirmation: (fileName:String) -> Unit,
     dialogTitle: String,
 ) {
+    var fileName by remember {
+        mutableStateOf("")
+    }
     Dialog(onDismissRequest = { onDismissRequest() }) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(375.dp)
-                .padding(32.dp),
-            shape = RoundedCornerShape(16.dp),
+                .height(275.dp)
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxSize(),
+                    .fillMaxSize()
+                    .padding(16.dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
                     text = dialogTitle,
-                    modifier = Modifier.padding(16.dp),
                 )
                 OutlinedTextField(
-                    value = "",
+                    value = fileName,
                     maxLines = 1,
                     onValueChange = {
+                        fileName = it
                     },
                     label = {Text("Filename") }
                 )
@@ -72,7 +79,7 @@ fun SaveDialog(
                         Text("Dismiss")
                     }
                     TextButton(
-                        onClick = { onConfirmation() },
+                        onClick = { onConfirmation(fileName) },
                         modifier = Modifier.padding(8.dp),
                     ) {
                         Text("Confirm")
