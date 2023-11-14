@@ -23,14 +23,18 @@ class CameraViewModel : ViewModel(){
         val currentList = _historyList.value.orEmpty() // 获取当前列表，如果为null则返回空列表
         val newList = currentList.toMutableList()
 
-        if (newList.size >= 8) {
+        if (newList.size >= 7) {
             newList.removeAt(0) // 删除最前面的元素
         }
 
         newList.add(data)
         _historyList.value = newList
     }
+    fun clearHistory() {
+        _historyList.value = emptyList()
+    }
 
     val historyList: LiveData<List<List<Point>>>
         get() = _historyList
+
 }

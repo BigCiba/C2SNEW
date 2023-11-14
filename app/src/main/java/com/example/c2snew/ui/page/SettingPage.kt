@@ -78,7 +78,13 @@ fun SettingInput(name: String,settingViewModel:SettingViewModel) {
                 settingViewModel.setValue(name, it)
                 text = it
             },
-            label = { Text(name) }
+            label = {
+                if (name == "Center") {
+                    Text("$name(0~400)")
+                } else {
+                    Text(name)
+                }
+            }
         )
     }
 }

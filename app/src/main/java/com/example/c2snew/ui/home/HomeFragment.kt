@@ -68,7 +68,7 @@ import kotlin.random.Random
 class HomeFragment : CameraFragment() {
     private lateinit var mViewBinding: FragmentHomeBinding
     private var widthRecord : Int = 1280
-    private var heightRecord : Int = 720
+    private var heightRecord : Int = 800
     private var toast : Boolean = false
     private lateinit var dashboardViewModel: DashboardViewModel
     private lateinit var cameraViewModel: CameraViewModel
@@ -171,13 +171,21 @@ class HomeFragment : CameraFragment() {
                                             contentDescription = "Save"
                                         )
                                     }
+                                    IconButton(onClick = {
+                                        cameraViewModel.clearHistory()
+                                    }) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.delete),
+                                            contentDescription = "Save"
+                                        )
+                                    }
                                 }
                             }
                         )
                     },
                     content = { innerPadding->
                         Box(modifier = Modifier.padding(innerPadding)) {
-                            MainPage(navIndex==0, cameraViewModel)
+                            MainPage(navIndex==0, cameraViewModel,settingViewModel)
                             Spectrum(navIndex==2, cameraViewModel)
                             SettingPage(navIndex==3,settingViewModel)
                         }
@@ -202,6 +210,10 @@ class HomeFragment : CameraFragment() {
                                                 val width = settingViewModel.getValue("Width")
                                                 if (center != null && center != "" && width != null && width != "") {
                                                     lineView.setLineCoordinates(center.toFloat(),width.toFloat())
+                                                }
+                                                val gain = settingViewModel.getValue("Gain")
+                                                if (gain != null && gain != "") {
+                                                    setGain(gain.toInt())
                                                 }
                                             }
                                             1 -> {
@@ -242,7 +254,7 @@ class HomeFragment : CameraFragment() {
             override fun onFinish() {
             }
         }
-//        super.initView()
+        super.initView()
     }
     fun Play() {
         if (getCurrentCamera() != null ) {
@@ -285,8 +297,8 @@ class HomeFragment : CameraFragment() {
     }
     override fun getCameraRequest(): CameraRequest {
         return CameraRequest.Builder()
-            .setPreviewWidth(640)  // initial camera preview width
-            .setPreviewHeight(480) // initial camera preview height
+            .setPreviewWidth(1280)  // initial camera preview width
+            .setPreviewHeight(800) // initial camera preview height
             .create()
     }
     private fun handleCameraOpened() {
@@ -358,8 +370,10 @@ class HomeFragment : CameraFragment() {
 
                     val averagedData = processData(data,width,height,format)
 //                    cameraViewModel.setData(averagedData)
+//                    Toast.makeText(context, "x:"+averagedData[0].x + ",y:"+averagedData[0].y, Toast.LENGTH_SHORT).show()
 
                     chartData = averagedData
+
                 } else {
                     // 如果 data 为空，执行相应的处理
                 }
@@ -392,8 +406,18 @@ class HomeFragment : CameraFragment() {
     }
     private fun calculateAverageBrightnessValues(data: ByteArray, imageWidth: Int, imageHeight: Int,format: IPreviewDataCallBack.DataFormat): FloatArray {
         val averages = FloatArray(imageWidth) // 用于存储每个 X 轴上的平均亮度值
-        val height = settingViewModel.getValue("Center")?.toInt() ?: 0
-        val width = settingViewModel.getValue("Width")?.toInt() ?: 0
+        var height = try {
+            settingViewModel.getValue("Center")?.toInt() ?: 0
+        } catch (e: NumberFormatException) {
+            0
+        }
+        height = 400.coerceAtMost(height)
+        height = height / 400 * imageHeight
+        val width = try {
+            settingViewModel.getValue("Width")?.toInt() ?: 0
+        } catch (e: NumberFormatException) {
+            0
+        }
 //        val height = 0
 //        val width = 0
         val min = max(height - width, 0)
@@ -442,7 +466,10 @@ class HomeFragment : CameraFragment() {
                     sum += y.toFloat() // 使用浮点数类型
                 }
                 // 计算平均亮度值
-                val average = sum / (max - min)
+                var average = 0f
+                if (max - min != 0) {
+                    average =  sum / (max - min)
+                }
                 averages[x] = average
             }
         }
