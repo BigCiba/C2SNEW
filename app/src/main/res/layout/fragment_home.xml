@@ -24,6 +24,19 @@
         app:layout_constraintTop_toTopOf="parent">
     </FrameLayout>
 
+    <FrameLayout
+        android:id="@+id/horizontalCameraViewContainer"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:background="@color/black"
+        app:layout_constraintDimensionRatio="H,8:5"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:rotation="90"
+        android:visibility="invisible">
+    </FrameLayout>
+
     <com.example.c2snew.ui.home.LineView
         android:id="@+id/LineView"
         android:layout_width="match_parent"

@@ -14,6 +14,7 @@ class SettingViewModel : ViewModel() {
     private val _exposure = MutableLiveData<String>("")
     private val _fps = MutableLiveData<String>("")
     private val _gain = MutableLiveData<String>("")
+    private val _saveImage = MutableLiveData<Boolean>( true)
 
     fun setValue(key: String, value: String) {
         when (key) {
@@ -77,5 +78,20 @@ class SettingViewModel : ViewModel() {
             }
         }
         return ""
+    }
+    fun toggleValue(key: String, value: Boolean) {
+        when (key) {
+            "SaveImage" -> {
+                _saveImage.value = value
+            }
+        }
+    }
+    fun getToggleValue(key:String): Boolean? {
+        when (key) {
+            "SaveImage" -> {
+                return _saveImage.value
+            }
+        }
+        return false
     }
 }

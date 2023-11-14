@@ -2,11 +2,16 @@ package com.example.c2snew.ui.page
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,9 +35,11 @@ import com.example.c2snew.ui.home.LineView
 
 @Composable
 fun SettingPage(visible:Boolean,settingViewModel:SettingViewModel) {
+    var saveImage by rememberSaveable { mutableStateOf(settingViewModel.getToggleValue("SaveImage") ?: true) }
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .padding(16.dp)
             .graphicsLayer(
                 alpha = if (visible) 1f else 0f,
                 translationX = if (visible) 0f else 1000f
@@ -40,37 +47,68 @@ fun SettingPage(visible:Boolean,settingViewModel:SettingViewModel) {
 //                                verticalArrangement = Arrangement.Center,
 //        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        LazyColumn(modifier = Modifier.fillMaxSize(),horizontalAlignment = Alignment.CenterHorizontally) {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
             item {
                 SettingTag("Spectrum")
-
-                SettingInput("Center", settingViewModel)
-                SettingInput("Width", settingViewModel)
+                Row {
+                    SettingInput("Center", settingViewModel, modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.width(20.dp))
+                    SettingInput("Width", settingViewModel, modifier = Modifier.weight(1f))
+                }
             }
 
             item {
                 SettingTag("Wavelength calibration")
-
-                SettingInput("a0", settingViewModel)
-                SettingInput("a1", settingViewModel)
-                SettingInput("a2", settingViewModel)
-                SettingInput("a3", settingViewModel)
+                Row {
+                    SettingInput("a0", settingViewModel, modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.width(20.dp))
+                    SettingInput("a1", settingViewModel, modifier = Modifier.weight(1f))
+                }
+                Row {
+                    SettingInput("a2", settingViewModel, modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.width(20.dp))
+                    SettingInput("a3", settingViewModel, modifier = Modifier.weight(1f))
+                }
             }
             item {
                 SettingTag("Camera")
-                SettingInput("Exposure", settingViewModel)
-                SettingInput("FPS", settingViewModel)
-                SettingInput("Gain", settingViewModel)
+                Row {
+                    SettingInput("Exposure", settingViewModel, modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.width(20.dp))
+                    SettingInput("FPS", settingViewModel, modifier = Modifier.weight(1f))
+                }
+                Row {
+                    SettingInput("Gain", settingViewModel, modifier = Modifier.width(130.dp))
+                    Spacer(modifier = Modifier.width(150.dp))
+                }
+            }
+            item {
+                SettingTag("Other")
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Checkbox(
+                        checked = saveImage,
+                        onCheckedChange = { settingViewModel.toggleValue("SaveImage", !saveImage) }
+                    )
+                    Text(
+                        text = "Save raw image",
+                        fontSize = TextUnit(20f, TextUnitType.Sp),
+                    )
+                }
             }
         }
     }
 }
 @Composable
-fun SettingInput(name: String,settingViewModel:SettingViewModel) {
+fun SettingInput(name: String,settingViewModel:SettingViewModel,modifier: Modifier) {
     // 在组件范围内持有 ViewModel
     var text by rememberSaveable { mutableStateOf(settingViewModel.getValue(name)) }
     text?.let { it ->
         OutlinedTextField(
+            modifier=modifier,
             value = it,
             maxLines = 1,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

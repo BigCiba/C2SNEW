@@ -17,6 +17,8 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,6 +47,7 @@ import com.example.c2snew.CameraViewModel
 import com.example.c2snew.R
 import com.example.c2snew.SettingViewModel
 import com.example.c2snew.databinding.FragmentHomeBinding
+import com.example.c2snew.ui.componment.SaveDialog
 import com.example.c2snew.ui.dashboard.DashboardViewModel
 import com.example.c2snew.ui.page.MainPage
 import com.example.c2snew.ui.page.SettingPage
@@ -76,10 +79,9 @@ class HomeFragment : CameraFragment() {
     private lateinit var countDownTimer: CountDownTimer
     private var isTimerRunning = false
     private var chartData: List<Point> = listOf(Point(0f,0f))
-    private var bitmap: ImageBitmap = ImageBitmap(width = 10, height = 10)
-    private var imgRaw: ByteArray = ByteArray(0)
 
     private var playing: Boolean = false
+    private lateinit var cameraContainer: FrameLayout
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -88,8 +90,10 @@ class HomeFragment : CameraFragment() {
     ): View {
         mViewBinding = FragmentHomeBinding.inflate(inflater, container, false)
         val root: View = mViewBinding.root
+        cameraContainer = mViewBinding.cameraViewContainer
 
         val frameLayout = root.findViewById<FrameLayout>(R.id.cameraViewContainer)
+        val horizontalFrameLayout = root.findViewById<FrameLayout>(R.id.horizontalCameraViewContainer)
         // 在其他 Fragment 中获取共享的 ViewModel 实例
         dashboardViewModel = ViewModelProvider(requireActivity())[DashboardViewModel::class.java]
         cameraViewModel = ViewModelProvider(requireActivity())[CameraViewModel::class.java]
@@ -112,6 +116,7 @@ class HomeFragment : CameraFragment() {
                 }
                 val scope = rememberCoroutineScope()
                 val snackbarHostState = remember { SnackbarHostState() }
+                val openAlertDialog = remember { mutableStateOf(false) }
 
 
                 val viewModel = remember { SettingViewModel() }
@@ -162,9 +167,7 @@ class HomeFragment : CameraFragment() {
                                         )
                                     }
                                     IconButton(onClick = {
-                                        scope.launch {
-                                            snackbarHostState.showSnackbar("Snackbar")
-                                        }
+                                        openAlertDialog.value = true
                                     }) {
                                         Icon(
                                             painter = painterResource(id = R.drawable.save),
@@ -186,8 +189,20 @@ class HomeFragment : CameraFragment() {
                     content = { innerPadding->
                         Box(modifier = Modifier.padding(innerPadding)) {
                             MainPage(navIndex==0, cameraViewModel,settingViewModel)
-                            Spectrum(navIndex==2, cameraViewModel)
+                            Spectrum(navIndex==2, cameraViewModel,settingViewModel)
                             SettingPage(navIndex==3,settingViewModel)
+                        }
+                        when {
+                            // ...
+                            openAlertDialog.value -> {
+                                SaveDialog(
+                                    onDismissRequest = { openAlertDialog.value = false },
+                                    onConfirmation = {
+                                        openAlertDialog.value = false
+                                    },
+                                    dialogTitle = "Save file",
+                                )
+                            }
                         }
                     },
                     bottomBar = {
@@ -203,9 +218,7 @@ class HomeFragment : CameraFragment() {
                                             0 -> {
                                                 lineView.visibility = View.VISIBLE;
                                                 frameLayout.visibility = View.VISIBLE;
-                                                frameLayout.rotation = 0f
-                                                frameLayout.scaleX = 1f
-                                                frameLayout.scaleY = 1f
+                                                horizontalFrameLayout.visibility = View.GONE
                                                 val center = settingViewModel.getValue("Center")
                                                 val width = settingViewModel.getValue("Width")
                                                 if (center != null && center != "" && width != null && width != "") {
@@ -215,24 +228,23 @@ class HomeFragment : CameraFragment() {
                                                 if (gain != null && gain != "") {
                                                     setGain(gain.toInt())
                                                 }
+                                                cameraContainer = mViewBinding.cameraViewContainer
                                             }
                                             1 -> {
-//                                                frameLayout.visibility = View.VISIBLE;
-//                                                frameLayout.rotation = 90f
-//                                                frameLayout.scaleX = 1.4f
-//                                                frameLayout.scaleY = 1.4f
-//                                                frameLayout.layout(0,230,0,0)
-
+                                                horizontalFrameLayout.visibility = View.VISIBLE
                                                 lineView.visibility = View.GONE;
                                                 frameLayout.visibility = View.GONE
+                                                cameraContainer = mViewBinding.horizontalCameraViewContainer
                                             }
                                             2 -> {
                                                 lineView.visibility = View.GONE;
                                                 frameLayout.visibility = View.GONE
+                                                horizontalFrameLayout.visibility = View.GONE
                                             };
                                             3 -> {
                                                 lineView.visibility = View.GONE;
                                                 frameLayout.visibility = View.GONE
+                                                horizontalFrameLayout.visibility = View.GONE
                                             };
                                         }
                                     }
@@ -386,7 +398,7 @@ class HomeFragment : CameraFragment() {
     }
 
     override fun getCameraViewContainer(): ViewGroup {
-        return mViewBinding.cameraViewContainer
+        return cameraContainer
     }
 
     override fun getRootView(inflater: LayoutInflater, container: ViewGroup?): View {

@@ -3,51 +3,39 @@ package com.example.c2snew.ui.page
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.Tab
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.dp
-import co.yml.charts.axis.AxisData
 import co.yml.charts.common.model.Point
-import co.yml.charts.ui.linechart.LineChart
-import co.yml.charts.ui.linechart.model.GridLines
-import co.yml.charts.ui.linechart.model.Line
-import co.yml.charts.ui.linechart.model.LineChartData
-import co.yml.charts.ui.linechart.model.LinePlotData
-import co.yml.charts.ui.linechart.model.LineStyle
-import co.yml.charts.ui.linechart.model.ShadowUnderLine
 import com.example.c2snew.CameraViewModel
+import com.example.c2snew.SettingViewModel
+import com.example.c2snew.ui.componment.HorizontalLineChart
 
 @SuppressLint("RememberReturnType")
 @Composable
-fun Spectrum(visible:Boolean, viewModel: CameraViewModel) {
+fun Spectrum(visible:Boolean, viewModel: CameraViewModel,settingModel: SettingViewModel) {
+    val titles = listOf("Pixel", "W1", "W2")
+    var state by remember { mutableIntStateOf(0) }
     val pointsData by viewModel.chartPointList.observeAsState(initial = listOf(Point(0f,0f)))
-    val steps = 1
-    val xAxisData = AxisData.Builder()
-        .axisStepSize(0.3.dp)
-        .backgroundColor(Color.Transparent)
-        .steps(4)
-        .labelData { i -> i.toString() }
-        .labelAndAxisLinePadding(15.dp)
-        .axisLineColor(MaterialTheme.colorScheme.secondary)
-        .axisLabelColor(MaterialTheme.colorScheme.secondary)
-        .build()
+    val historyData by viewModel.historyList.observeAsState(initial = emptyList())
 
-    val yAxisData = AxisData.Builder()
-        .steps(steps)
-        .backgroundColor(Color.Transparent)
-//        .labelAndAxisLinePadding(51.dp)
-        .axisLineColor(MaterialTheme.colorScheme.secondary)
-        .axisLabelColor(MaterialTheme.colorScheme.secondary)
-        .labelData { i ->
-            ((255 / steps) * i).toString()
-        }.build()
+    var xList = listOf("0", "256", "512", "768", "1024", "1280")
+    val a0 = settingModel.getValue("a0")
+    val a1 = settingModel.getValue("a1")
+    val a2 = settingModel.getValue("a2")
+    val a3 = settingModel.getValue("a3")
+    if (a0 != "" && a1 != "" && a2 != "" && a3 != "" && a0 != null && a1 != null && a2 != null && a3 != null && state > 0) {
+        xList = wavelengthCalibration(xList, a0.toFloat(),a1.toFloat(),a2.toFloat(),a3.toFloat(),)
+    }
 
 
     Column(
@@ -59,34 +47,37 @@ fun Spectrum(visible:Boolean, viewModel: CameraViewModel) {
             ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        LineChart(
+        PrimaryTabRow(selectedTabIndex = state) {
+            titles.forEachIndexed { index, title ->
+                Tab(
+                    selected = state == index,
+                    onClick = { state = index },
+                    text = { Text(text = title, maxLines = 1) }
+                )
+            }
+        }
+        val combinedData: List<List<Point>> = mutableListOf<List<Point>>().apply {
+            if (pointsData.isNotEmpty()) {
+                add(pointsData)
+            }
+            if (historyData.isNotEmpty()) {
+                addAll(historyData)
+            }
+        }
+        var xTitle = when(state) {
+            0-> "Pixel"
+            1-> "Wavelength"
+            2-> "Wavelength"
+            else -> "Pixel"
+        }
+        HorizontalLineChart(
             modifier = Modifier
-                .fillMaxWidth(),
-            lineChartData = LineChartData(
-                linePlotData = LinePlotData(
-                    lines = listOf(
-                        Line(
-                            dataPoints = pointsData,
-                            LineStyle(
-                                color = MaterialTheme.colorScheme.secondary,
-                                width = 4f
-                            ),
-//                            IntersectionPoint(),
-//                            SelectionHighlightPoint(),
-//                            ShadowUnderLine(),
-//                            SelectionHighlightPopUp()
-
-                            shadowUnderLine = ShadowUnderLine()
-                        )
-                    ),
-                ),
-                xAxisData = xAxisData,
-                yAxisData = yAxisData,
-                gridLines = GridLines(
-                    color = MaterialTheme.colorScheme.outlineVariant
-                ),
-                backgroundColor = MaterialTheme.colorScheme.surface
-            )
+                .fillMaxSize(),
+            xAxis = xList,
+            yAxis = listOf("255", "204", "153", "102", "51", "0"),
+            xTitle = xTitle,
+            yTitle = "",
+            lines = combinedData
         )
     }
 }

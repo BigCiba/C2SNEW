@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import co.yml.charts.common.model.Point
 import com.example.c2snew.CameraViewModel
 import com.example.c2snew.SettingViewModel
+import com.example.c2snew.ui.componment.LineChart
 import kotlin.math.pow
 
 @SuppressLint("RememberReturnType")
@@ -80,7 +81,7 @@ fun MainPage(visible:Boolean, viewModel: CameraViewModel,settingModel:SettingVie
             2-> "Wavelength"
             else -> "Pixel"
         }
-        com.example.c2snew.ui.componment.LineChart(
+        LineChart(
             modifier = Modifier
                 .fillMaxSize(),
             xAxis = xList,
