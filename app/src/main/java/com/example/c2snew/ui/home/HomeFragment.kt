@@ -62,6 +62,7 @@ import com.jiangdg.ausbc.CameraClient
 import com.jiangdg.ausbc.MultiCameraClient
 import com.jiangdg.ausbc.base.CameraFragment
 import com.jiangdg.ausbc.callback.ICameraStateCallBack
+import com.jiangdg.ausbc.callback.ICaptureCallBack
 import com.jiangdg.ausbc.callback.IPreviewDataCallBack
 import com.jiangdg.ausbc.camera.bean.CameraRequest
 import com.jiangdg.ausbc.utils.ToastUtils
@@ -90,6 +91,7 @@ class HomeFragment : CameraFragment() {
     private lateinit var countDownTimer: CountDownTimer
     private var isTimerRunning = false
     private var chartData: List<Point> = listOf(Point(0f,0f))
+    private lateinit var previewCallback: IPreviewDataCallBack
 
     private var playing: Boolean = false
     private lateinit var cameraContainer: FrameLayout
@@ -102,6 +104,19 @@ class HomeFragment : CameraFragment() {
         mViewBinding = FragmentHomeBinding.inflate(inflater, container, false)
         val root: View = mViewBinding.root
         cameraContainer = mViewBinding.cameraViewContainer
+        previewCallback = object : IPreviewDataCallBack {
+            override fun onPreviewData(
+                data: ByteArray?,
+                width: Int,
+                height: Int,
+                format: IPreviewDataCallBack.DataFormat
+            ) {
+                if (data != null) {
+                    val averagedData = processData(data, width, height, format)
+                    chartData = averagedData
+                }
+            }
+        }
 
         val frameLayout = root.findViewById<FrameLayout>(R.id.cameraViewContainer)
         val horizontalFrameLayout = root.findViewById<FrameLayout>(R.id.horizontalCameraViewContainer)
@@ -214,17 +229,19 @@ class HomeFragment : CameraFragment() {
                                         val downloadFolder = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
                                         val currentTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
                                         val filePath = File(downloadFolder, "spectrochip/${it}-${currentTime}.csv").absolutePath
-                                        val pointsData = cameraViewModel.chartPointList.value
+                                        val pointsData = (cameraViewModel.chartPointList.value)
                                         val historyData = cameraViewModel.historyList.value
                                         val combinedData: List<List<Point>> = mutableListOf<List<Point>>().apply {
                                             if (pointsData != null) {
                                                 if (pointsData.isNotEmpty()) {
-                                                    add(pointsData)
+                                                    add(expandList(pointsData,1280))
                                                 }
                                             }
                                             if (historyData != null) {
                                                 if (historyData.isNotEmpty()) {
-                                                    addAll(historyData)
+                                                    addAll(historyData.map {pointList->
+                                                        expandList(pointList,1280)
+                                                    })
                                                 }
                                             }
                                         }
@@ -280,6 +297,17 @@ class HomeFragment : CameraFragment() {
                                             }
                                             // 将 CSV 内容写入文件
                                             File(filePath).writeText(csvContent.toString())
+                                            getCurrentCamera()?.captureImage(object : ICaptureCallBack {
+                                                override fun onBegin() {}
+
+                                                override fun onError(error: String?) {
+                                                    ToastUtils.show(error ?: "capture image failed")
+                                                }
+
+                                                override fun onComplete(path: String?) {
+                                                    ToastUtils.show(path ?: "capture image success")
+                                                }
+                                            }, File(downloadFolder, "spectrochip/${it}-${currentTime}.png").absolutePath)
                                         }
                                     },
                                     dialogTitle = "Save file",
@@ -354,6 +382,7 @@ class HomeFragment : CameraFragment() {
         return root
     }
     override fun initView() {
+        super.initView()
         // 直接在数据回调中更新数据会导致崩溃，估计是死循环了，所以用计时器异步更新
         countDownTimer = object : CountDownTimer(Long.MAX_VALUE, 30) {
             override fun onTick(millisUntilFinished: Long) {
@@ -362,7 +391,8 @@ class HomeFragment : CameraFragment() {
             override fun onFinish() {
             }
         }
-        super.initView()
+        getCameraRequest().isCaptureRawImage = true
+        getCurrentCamera()?.updateResolution(1280, 800)
     }
     fun Play() {
         if (getCurrentCamera() != null ) {
@@ -371,13 +401,13 @@ class HomeFragment : CameraFragment() {
                 isTimerRunning = false
                 playing = false
                 countDownTimer.cancel()
-//                closeCamera()
+                closeCamera()
             } else {
                 Toast.makeText(context, "Play", Toast.LENGTH_SHORT).show()
                 isTimerRunning = true
                 playing = true
                 countDownTimer.start()
-//                openCamera()
+                openCamera()
             }
         }
     }
@@ -404,6 +434,7 @@ class HomeFragment : CameraFragment() {
             playing = false
             countDownTimer.cancel()
         }
+        getCurrentCamera()?.removePreviewDataCallBack(previewCallback)
     }
     override fun getCameraRequest(): CameraRequest {
         return CameraRequest.Builder()
@@ -418,78 +449,7 @@ class HomeFragment : CameraFragment() {
             playing = true
             countDownTimer.start()
         }
-        getCameraRequest().isCaptureRawImage = true
-        getCurrentCamera()?.addPreviewDataCallBack( object : IPreviewDataCallBack {
-            override fun onPreviewData(
-                data: ByteArray?,
-                width: Int,
-                height: Int,
-                format: IPreviewDataCallBack.DataFormat
-            ) {
-                if (data != null) {
-//                    val imgBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-//                    val bytesPerPixel = 4
-//                    var imgBitmap = ImageBitmap(width,height,ImageBitmapConfig.Argb8888)
-
-//                    for (x in 0 until width) {
-//                        var sum = 0f // 使用浮点数类型
-//                        for (y in 0 until height) {
-//                            // 计算像素在数组中的索引
-//                            val index = (x + y * width) * bytesPerPixel
-//
-//                            // 提取像素的RGBA值
-//                            val r = data[index].toInt() and 0xFF
-//                            val g = data[index + 1].toInt() and 0xFF
-//                            val b = data[index + 2].toInt() and 0xFF
-//                            val a = data[index + 2].toInt() and 0xFF
-//
-//                            imgBitmap.setPixel(index % width, index / width, Color.argb(a, r, g, b))
-////                            intArray[index] = Color.argb(a, r, g, b)
-//                        }
-//                    }
-//                    val imageBitmap = ImageDecoder.createSource(data)
-//                    val a = ImageDecoder.decodeBitmap(imageBitmap)
-//                    bitmap = a.asImageBitmap()
-
-                    // 更新成实际相机的宽度
-                    if (widthRecord != width) {
-//                        Toast.makeText(context, "width:${width},height:${height},size:${data.size}", Toast.LENGTH_SHORT).show()
-                        widthRecord = width
-
-//                        val yuvimage = YuvImage(
-//                            data,
-//                            ImageFormat.FLEX_RGBA_8888,
-//                            width,
-//                            height,
-//                            null
-//                        )
-//                        val baos = ByteArrayOutputStream()
-//                        yuvimage.compressToJpeg(
-//                            Rect(0, 0, width, height),
-//                            80,
-//                            baos
-//                        )
-//                        val  jdata = baos.toByteArray()
-//                        val bmp  = BitmapFactory.decodeByteArray(jdata, 0, jdata.size);
-//                        if (bmp!=null) {
-//                            bitmap = bmp.asImageBitmap()
-//                        }
-                    }
-//                    if (heightRecord != height) {
-//                        heightRecord = height
-//                    }
-
-                    val averagedData = processData(data,width,height,format)
-//                    cameraViewModel.setData(averagedData)
-//                    Toast.makeText(context, "x:"+averagedData[0].x + ",y:"+averagedData[0].y, Toast.LENGTH_SHORT).show()
-
-                    chartData = averagedData
-
-                } else {
-                    // 如果 data 为空，执行相应的处理
-                }
-            }
-        })
+        getCurrentCamera()?.addPreviewDataCallBack(previewCallback)
     }
 
     override fun getCameraView(): IAspectRatio {
@@ -587,6 +547,25 @@ class HomeFragment : CameraFragment() {
 
 
         return averages
+    }
+    fun linearInterpolation(p1: Point, p2: Point, factor: Float): Point {
+        val diffY = p2.y - p1.y
+        val interpolatedY = p1.y + (diffY * factor).toInt()
+        return Point(p1.x + 1, interpolatedY)
+    }
+
+    fun expandList(originalList: List<Point>, targetSize: Int): List<Point> {
+        val expandedList = originalList.toMutableList()
+        while (expandedList.size < targetSize) {
+            for (i in 0 until expandedList.size - 1) {
+                val p1 = expandedList[i]
+                val p2 = expandedList[i + 1]
+                val newPoint = linearInterpolation(p1, p2, 0.5f)
+                expandedList.add(i + 1, newPoint)
+                if (expandedList.size >= targetSize) break
+            }
+        }
+        return expandedList
     }
     override fun onDestroyView() {
         super.onDestroyView()
