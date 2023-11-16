@@ -326,6 +326,7 @@ class HomeFragment : CameraFragment() {
                                         navIndex = index
                                         when (navIndex) {
                                             0 -> {
+                                                getCurrentCamera()?.setRenderSize(1280,800)
                                                 lineView.visibility = View.VISIBLE;
                                                 frameLayout.visibility = View.VISIBLE;
 
@@ -449,6 +450,7 @@ class HomeFragment : CameraFragment() {
             playing = true
             countDownTimer.start()
         }
+        getCurrentCamera()?.setRenderSize(1280,800)
         getCurrentCamera()?.addPreviewDataCallBack(previewCallback)
     }
 
