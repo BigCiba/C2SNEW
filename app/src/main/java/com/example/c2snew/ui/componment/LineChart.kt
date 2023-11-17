@@ -103,7 +103,7 @@ fun LineChart(
         lines.forEachIndexed {lineIndex, points ->
             if (points.size >= 2) {
                 val path = Path()
-                val scaleX = chartSize.width / 1080f
+                val scaleX = chartSize.width / 1280f
                 val scaleY = chartSize.height / 255f
                 points.forEachIndexed { index, point ->
                     val x = point.x * scaleX + offset.x

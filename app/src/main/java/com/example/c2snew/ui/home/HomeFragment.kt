@@ -484,8 +484,8 @@ class HomeFragment : CameraFragment() {
         } catch (e: NumberFormatException) {
             0
         }
-        height = 800.coerceAtMost(height)
-        height = height / 800 * imageHeight
+//        height = 800.coerceAtMost(height)
+//        height = height / 800 * imageHeight
         val width = try {
             settingViewModel.getValue("Width")?.toInt() ?: 0
         } catch (e: NumberFormatException) {
