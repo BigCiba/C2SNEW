@@ -484,13 +484,14 @@ class HomeFragment : CameraFragment() {
         } catch (e: NumberFormatException) {
             0
         }
-        height = 400.coerceAtMost(height)
-        height = height / 400 * imageHeight
+        height = 800.coerceAtMost(height)
+        height = height / 800 * imageHeight
         val width = try {
             settingViewModel.getValue("Width")?.toInt() ?: 0
         } catch (e: NumberFormatException) {
             0
         }
+        Toast.makeText(context, "center${settingViewModel.getValue("Center")},${height},${width},${imageHeight}", Toast.LENGTH_SHORT).show()
 //        val height = 0
 //        val width = 0
         val min = max(height - width, 0)

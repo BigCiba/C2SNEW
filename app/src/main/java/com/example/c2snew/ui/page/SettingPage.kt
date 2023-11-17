@@ -118,7 +118,7 @@ fun SettingInput(name: String,settingViewModel:SettingViewModel,modifier: Modifi
             },
             label = {
                 if (name == "Center") {
-                    Text("$name(0~400)")
+                    Text("$name(0~800)")
                 } else {
                     Text(name)
                 }
