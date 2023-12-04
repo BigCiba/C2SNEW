@@ -23,8 +23,8 @@ class LineView(context: Context, attrs: AttributeSet? = null) : View(context, at
     override fun onDraw(canvas: Canvas) {
         if (this.lineHeight != 0f) {
             super.onDraw(canvas)
-            val top = 400f.coerceAtMost((lineHeight - lineWidth) / 400 * height)
-            val bottom = 400f.coerceAtMost((lineHeight + lineWidth) / 400 * height)
+            val top = 800f.coerceAtMost((lineHeight - lineWidth) / 800 * height)
+            val bottom = 800f.coerceAtMost((lineHeight + lineWidth) / 800 * height)
             canvas?.drawLine(0f, top, width.toFloat(), top, paint)
             canvas?.drawLine(0f, bottom, width.toFloat(), bottom, paint)
 //            canvas?.drawRect(Rect(0, (height - lineWidth).toInt(), width,(height + lineWidth).toInt()), paint)
