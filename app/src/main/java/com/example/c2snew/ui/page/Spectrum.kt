@@ -71,8 +71,6 @@ fun Spectrum(visible:Boolean, viewModel: CameraViewModel,settingModel: SettingVi
             else -> "Pixel"
         }
         HorizontalLineChart(
-            modifier = Modifier
-                .fillMaxSize(),
             xAxis = xList,
             yAxis = listOf("255", "204", "153", "102", "51", "0"),
             xTitle = xTitle,

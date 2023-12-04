@@ -491,7 +491,7 @@ class HomeFragment : CameraFragment() {
         } catch (e: NumberFormatException) {
             0
         }
-        Toast.makeText(context, "center${settingViewModel.getValue("Center")},${height},${width},${imageHeight}", Toast.LENGTH_SHORT).show()
+//        Toast.makeText(context, "center${settingViewModel.getValue("Center")},${height},${width},${imageHeight}", Toast.LENGTH_SHORT).show()
 //        val height = 0
 //        val width = 0
         val min = max(height - width, 0)
