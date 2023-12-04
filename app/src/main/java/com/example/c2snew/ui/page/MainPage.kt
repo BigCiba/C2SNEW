@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import co.yml.charts.common.model.Point
 import com.example.c2snew.CameraViewModel
 import com.example.c2snew.SettingViewModel
@@ -82,8 +83,6 @@ fun MainPage(visible:Boolean, viewModel: CameraViewModel,settingModel:SettingVie
             else -> "Pixel"
         }
         LineChart(
-            modifier = Modifier
-                .fillMaxSize(),
             xAxis = xList,
             yAxis = listOf("255", "204", "153", "102", "51", "0"),
             xTitle = xTitle,
