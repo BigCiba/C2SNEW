@@ -1,6 +1,8 @@
 package com.example.c2snew.ui.page
 
 import android.annotation.SuppressLint
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +37,7 @@ fun MainPage(visible:Boolean, viewModel: CameraViewModel,settingModel:SettingVie
 
     val pointsData by viewModel.chartPointList.observeAsState(initial = listOf(Point(0f,0f)))
     val historyData by viewModel.historyList.observeAsState(initial = emptyList())
+    val bitmapData by viewModel.bitmapData.observeAsState()
 
     var xList = listOf("0", "256", "512", "768", "1024", "1280")
     val a0 = settingModel.getValue("a0")
@@ -62,6 +65,13 @@ fun MainPage(visible:Boolean, viewModel: CameraViewModel,settingModel:SettingVie
                     text = { Text(text = title, maxLines = 1) }
                 )
             }
+        }
+        bitmapData?.let {
+            Image(
+                bitmap = it,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
         Box(modifier = Modifier
             .fillMaxWidth()

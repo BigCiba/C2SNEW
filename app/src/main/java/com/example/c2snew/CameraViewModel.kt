@@ -7,6 +7,19 @@ import androidx.lifecycle.ViewModel
 import co.yml.charts.common.model.Point
 
 class CameraViewModel : ViewModel(){
+    private val _bitmap = MutableLiveData<ImageBitmap>()
+    val bitmapData: LiveData<ImageBitmap>
+        get() = _bitmap
+    fun setBitmap(data: ImageBitmap) {
+        _bitmap.value = data
+    }
+    private val _rawdata = MutableLiveData<ByteArray>()
+    val rawdata: LiveData<ByteArray>
+        get() = _rawdata
+    fun setRawdata(data: ByteArray) {
+        _rawdata.postValue(data)
+    }
+
     private val _chartPointList = MutableLiveData<List<Point>>()
     private val _historyList = MutableLiveData<List<List<Point>>>().apply {
         value = emptyList() // 初始值设为空列表

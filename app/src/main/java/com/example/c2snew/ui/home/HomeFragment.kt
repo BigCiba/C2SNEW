@@ -1,10 +1,7 @@
 package com.example.c2snew.ui.home
 
-import android.app.ActionBar.LayoutParams
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.ImageFormat
-import android.graphics.Rect
-import android.graphics.YuvImage
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Environment
@@ -13,13 +10,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,10 +35,6 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.dp
-import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.constraintlayout.widget.ConstraintSet
-import androidx.core.view.marginTop
 import androidx.lifecycle.ViewModelProvider
 import co.yml.charts.common.model.Point
 import com.example.c2snew.CameraViewModel
@@ -56,9 +46,7 @@ import com.example.c2snew.ui.dashboard.DashboardViewModel
 import com.example.c2snew.ui.page.MainPage
 import com.example.c2snew.ui.page.SettingPage
 import com.example.c2snew.ui.page.Spectrum
-import com.example.c2snew.ui.page.wavelengthCalibration
 import com.example.c2snew.ui.theme.Material3Theme
-import com.jiangdg.ausbc.CameraClient
 import com.jiangdg.ausbc.MultiCameraClient
 import com.jiangdg.ausbc.base.CameraFragment
 import com.jiangdg.ausbc.callback.ICameraStateCallBack
@@ -68,8 +56,6 @@ import com.jiangdg.ausbc.camera.bean.CameraRequest
 import com.jiangdg.ausbc.utils.ToastUtils
 import com.jiangdg.ausbc.widget.AspectRatioTextureView
 import com.jiangdg.ausbc.widget.IAspectRatio
-import kotlinx.coroutines.launch
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -77,7 +63,6 @@ import java.util.Locale
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
-import kotlin.random.Random
 
 
 class HomeFragment : CameraFragment() {
@@ -91,6 +76,8 @@ class HomeFragment : CameraFragment() {
     private lateinit var countDownTimer: CountDownTimer
     private var isTimerRunning = false
     private var chartData: List<Point> = listOf(Point(0f,0f))
+    private lateinit var bitmapData: ImageBitmap
+    private lateinit var rawData: ByteArray
     private lateinit var previewCallback: IPreviewDataCallBack
 
     private var playing: Boolean = false
@@ -388,6 +375,8 @@ class HomeFragment : CameraFragment() {
         countDownTimer = object : CountDownTimer(Long.MAX_VALUE, 30) {
             override fun onTick(millisUntilFinished: Long) {
                 cameraViewModel.setData(chartData)
+//                cameraViewModel.setBitmap(bitmapData)
+//                cameraViewModel.setRawdata(rawData)
             }
             override fun onFinish() {
             }
@@ -468,6 +457,25 @@ class HomeFragment : CameraFragment() {
     }
 
     override fun getGravity(): Int = Gravity.TOP
+    private fun createImageBitmap(pixelData: ByteArray, width: Int, height: Int): ImageBitmap {
+        // Create a Bitmap from pixelData
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+
+        // Set pixel values
+        for (x in 0 until width) {
+            for (y in 0 until height) {
+                val index = (y * width + x) * 4
+                val color = (pixelData[index].toInt() and 0xFF) shl 16 or
+                        ((pixelData[index + 1].toInt() and 0xFF) shl 8) or
+                        (pixelData[index + 2].toInt() and 0xFF) or
+                        ((pixelData[index + 3].toInt() and 0xFF) shl 24)
+                bitmap.setPixel(x, y, color)
+            }
+        }
+
+        // Convert Bitmap to ImageBitmap
+        return bitmap.asImageBitmap()
+    }
     // 图表
     private fun processData(byteArray: ByteArray, imageWidth: Int, imageHeight: Int,format: IPreviewDataCallBack.DataFormat): List<Point> {
         val averagedData = calculateAverageBrightnessValues(byteArray, imageWidth, imageHeight, format)
