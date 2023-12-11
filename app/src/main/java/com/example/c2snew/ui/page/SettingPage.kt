@@ -70,18 +70,18 @@ fun SettingPage(visible:Boolean,settingViewModel:SettingViewModel) {
                     SettingInput("a3", settingViewModel, modifier = Modifier.weight(1f))
                 }
             }
-            item {
-                SettingTag("Camera")
-                Row {
-                    SettingInput("Exposure", settingViewModel, modifier = Modifier.weight(1f))
-                    Spacer(modifier = Modifier.width(20.dp))
-                    SettingInput("FPS", settingViewModel, modifier = Modifier.weight(1f))
-                }
-                Row {
-                    SettingInput("Gain", settingViewModel, modifier = Modifier.width(130.dp))
-                    Spacer(modifier = Modifier.width(150.dp))
-                }
-            }
+//            item {
+//                SettingTag("Camera")
+//                Row {
+//                    SettingInput("Exposure", settingViewModel, modifier = Modifier.weight(1f))
+//                    Spacer(modifier = Modifier.width(20.dp))
+//                    SettingInput("FPS", settingViewModel, modifier = Modifier.weight(1f))
+//                }
+//                Row {
+//                    SettingInput("Gain", settingViewModel, modifier = Modifier.width(130.dp))
+//                    Spacer(modifier = Modifier.width(150.dp))
+//                }
+//            }
             item {
                 SettingTag("Other")
 
@@ -91,7 +91,10 @@ fun SettingPage(visible:Boolean,settingViewModel:SettingViewModel) {
                 ) {
                     Checkbox(
                         checked = saveImage,
-                        onCheckedChange = { settingViewModel.toggleValue("SaveImage", !saveImage) }
+                        onCheckedChange = {
+                            settingViewModel.toggleValue("SaveImage", !saveImage)
+                            saveImage = !saveImage
+                        }
                     )
                     Text(
                         text = "Save raw image",

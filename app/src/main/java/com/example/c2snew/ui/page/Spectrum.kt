@@ -72,7 +72,7 @@ fun Spectrum(visible:Boolean, viewModel: CameraViewModel,settingModel: SettingVi
         }
         HorizontalLineChart(
             xAxis = xList,
-            yAxis = listOf("255", "204", "153", "102", "51", "0"),
+            yAxis = listOf("10k", "8k", "6k", "4k", "2k", "0"),
             xTitle = xTitle,
             yTitle = "",
             lines = combinedData

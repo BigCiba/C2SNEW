@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import co.yml.charts.common.model.Point
@@ -68,12 +69,14 @@ fun MainPage(visible:Boolean, viewModel: CameraViewModel,settingModel:SettingVie
         }
         bitmapData?.let {
             Image(
-                bitmap = it,
+                bitmap = it.asImageBitmap(),
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(8f / 5f)
+                    .background(Color.Black),
             )
-        }
-        Box(modifier = Modifier
+        } ?: Box(modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(8f / 5f)
             .background(Color.Black)
@@ -94,7 +97,8 @@ fun MainPage(visible:Boolean, viewModel: CameraViewModel,settingModel:SettingVie
         }
         LineChart(
             xAxis = xList,
-            yAxis = listOf("255", "204", "153", "102", "51", "0"),
+//            yAxis = listOf("255", "204", "153", "102", "51", "0"),
+            yAxis = listOf("10k", "8k", "6k", "4k", "2k", "0"),
             xTitle = xTitle,
             yTitle = "",
             lines = combinedData

@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.ViewModelProvider
 import co.yml.charts.common.model.Point
@@ -44,6 +45,7 @@ import com.example.c2snew.databinding.FragmentHomeBinding
 import com.example.c2snew.ui.componment.SaveDialog
 import com.example.c2snew.ui.dashboard.DashboardViewModel
 import com.example.c2snew.ui.page.MainPage
+import com.example.c2snew.ui.page.Raw
 import com.example.c2snew.ui.page.SettingPage
 import com.example.c2snew.ui.page.Spectrum
 import com.example.c2snew.ui.theme.Material3Theme
@@ -57,6 +59,10 @@ import com.jiangdg.ausbc.utils.ToastUtils
 import com.jiangdg.ausbc.widget.AspectRatioTextureView
 import com.jiangdg.ausbc.widget.IAspectRatio
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -77,7 +83,6 @@ class HomeFragment : CameraFragment() {
     private var isTimerRunning = false
     private var chartData: List<Point> = listOf(Point(0f,0f))
     private lateinit var bitmapData: ImageBitmap
-    private lateinit var rawData: ByteArray
     private lateinit var previewCallback: IPreviewDataCallBack
 
     private var playing: Boolean = false
@@ -91,6 +96,7 @@ class HomeFragment : CameraFragment() {
         mViewBinding = FragmentHomeBinding.inflate(inflater, container, false)
         val root: View = mViewBinding.root
         cameraContainer = mViewBinding.cameraViewContainer
+
         previewCallback = object : IPreviewDataCallBack {
             override fun onPreviewData(
                 data: ByteArray?,
@@ -99,6 +105,14 @@ class HomeFragment : CameraFragment() {
                 format: IPreviewDataCallBack.DataFormat
             ) {
                 if (data != null) {
+                    val byteBuffer = ByteBuffer.allocateDirect(width * height * 4)
+                    byteBuffer.order(ByteOrder.LITTLE_ENDIAN)
+                    byteBuffer.put(data.copyOfRange(0, width * height * 4))
+                    byteBuffer.position(0)
+                    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                    bitmap?.copyPixelsFromBuffer(byteBuffer)
+//                    bitmapData = bitmap.asImageBitmap()
+                    cameraViewModel.setBitmap(bitmap)
                     val averagedData = processData(data, width, height, format)
                     chartData = averagedData
                 }
@@ -106,7 +120,6 @@ class HomeFragment : CameraFragment() {
         }
 
         val frameLayout = root.findViewById<FrameLayout>(R.id.cameraViewContainer)
-        val horizontalFrameLayout = root.findViewById<FrameLayout>(R.id.horizontalCameraViewContainer)
 
         // 在其他 Fragment 中获取共享的 ViewModel 实例
         dashboardViewModel = ViewModelProvider(requireActivity())[DashboardViewModel::class.java]
@@ -203,6 +216,7 @@ class HomeFragment : CameraFragment() {
                     content = { innerPadding->
                         Box(modifier = Modifier.padding(innerPadding)) {
                             MainPage(navIndex==0, cameraViewModel,settingViewModel)
+                            Raw(navIndex==1, cameraViewModel,settingViewModel)
                             Spectrum(navIndex==2, cameraViewModel,settingViewModel)
                             SettingPage(navIndex==3,settingViewModel)
                         }
@@ -218,6 +232,11 @@ class HomeFragment : CameraFragment() {
                                         val filePath = File(downloadFolder, "spectrochip/${it}-${currentTime}.csv").absolutePath
                                         val pointsData = (cameraViewModel.chartPointList.value)
                                         val historyData = cameraViewModel.historyList.value
+                                        val imageData: Bitmap? = cameraViewModel.bitmapData.value
+                                        val imageListData: List<Bitmap?> = cameraViewModel.imageList.value ?: emptyList()
+                                        val imageSaveList = listOf(imageData) + imageListData
+
+
                                         val combinedData: List<List<Point>> = mutableListOf<List<Point>>().apply {
                                             if (pointsData != null) {
                                                 if (pointsData.isNotEmpty()) {
@@ -263,17 +282,19 @@ class HomeFragment : CameraFragment() {
                                             val maxDataSize = combinedData.maxOfOrNull { it.size } ?: 0
                                             for (pixelIndex in 0 until maxDataSize) {
                                                 // 添加 Pixel 列数据
-                                                val pixel = combinedData.firstOrNull()?.getOrNull(pixelIndex)?.x?.toInt() ?: 0
+                                                var pixel = combinedData.firstOrNull()?.getOrNull(pixelIndex)?.x?.toInt() ?: 0
                                                 var wavelength = 0f
                                                 csvContent.append(pixel.toString())
                                                 if (a0 != 0f) {
                                                     wavelength = a0 + a1 * pixel.toFloat() + a2 * pixel.toFloat().pow(2) + a3 * pixel.toFloat().pow(3)
+                                                    wavelength = wavelength * 10000 / 255
                                                     csvContent.append(",$wavelength")
                                                 }
                                                 // 添加样本列数据
                                                 for (sampleIndex in 0 until combinedData.size) {
                                                     val sampleData = combinedData[sampleIndex]
-                                                    val yValue = sampleData.getOrNull(pixelIndex)?.y ?: ""
+                                                    var yValue = sampleData.getOrNull(pixelIndex)?.y ?: 0f
+                                                    yValue = yValue * 10000 / 255
                                                     csvContent.append(", $yValue")
                                                 }
                                                 csvContent.appendln()
@@ -284,17 +305,43 @@ class HomeFragment : CameraFragment() {
                                             }
                                             // 将 CSV 内容写入文件
                                             File(filePath).writeText(csvContent.toString())
-                                            getCurrentCamera()?.captureImage(object : ICaptureCallBack {
-                                                override fun onBegin() {}
 
-                                                override fun onError(error: String?) {
-                                                    ToastUtils.show(error ?: "capture image failed")
-                                                }
 
-                                                override fun onComplete(path: String?) {
-                                                    ToastUtils.show(path ?: "capture image success")
+                                            // 存照片
+                                            if (settingViewModel.getToggleValue("_saveImage") == true) {
+                                                if (imageSaveList != null) {
+                                                    if (imageSaveList.isNotEmpty()) {
+                                                        for ((index, bitmap) in imageSaveList.withIndex()) {
+                                                            val myDir = File(downloadFolder, "spectrochip/${it}-${index + 1}-${currentTime}.png").absolutePath
+                                                            val directory = File(filePath).parentFile
+                                                            if (!directory.exists()) {
+                                                                directory.mkdirs() // 创建目录及其父目录（如果不存在）
+                                                            }
+
+                                                            try {
+                                                                val out = FileOutputStream(myDir)
+                                                                bitmap?.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                                                out.flush()
+                                                                out.close()
+                                                            } catch (e: IOException) {
+                                                                e.printStackTrace()
+                                                            }
+                                                        }
+                                                    }
                                                 }
-                                            }, File(downloadFolder, "spectrochip/${it}-${currentTime}.png").absolutePath)
+                                            }
+                                            Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
+//                                            getCurrentCamera()?.captureImage(object : ICaptureCallBack {
+//                                                override fun onBegin() {}
+//
+//                                                override fun onError(error: String?) {
+//                                                    ToastUtils.show(error ?: "capture image failed")
+//                                                }
+//
+//                                                override fun onComplete(path: String?) {
+//                                                    ToastUtils.show(path ?: "capture image success")
+//                                                }
+//                                            }, File(downloadFolder, "spectrochip/${it}-${currentTime}.png").absolutePath)
                                         }
                                     },
                                     dialogTitle = "Save file",
@@ -315,15 +362,6 @@ class HomeFragment : CameraFragment() {
                                             0 -> {
                                                 getCurrentCamera()?.setRenderSize(1280,800)
                                                 lineView.visibility = View.VISIBLE;
-                                                frameLayout.visibility = View.VISIBLE;
-
-                                                val layoutParams = frameLayout.layoutParams as ViewGroup.MarginLayoutParams
-                                                layoutParams.height = 0
-                                                layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT
-                                                layoutParams.topMargin = (112f * resources.displayMetrics.density).toInt()
-                                                frameLayout.layoutParams = layoutParams
-                                                frameLayout.rotation = 0f
-                                                frameLayout.requestLayout()
 
                                                 val center = settingViewModel.getValue("Center")
                                                 val width = settingViewModel.getValue("Width")
@@ -336,27 +374,25 @@ class HomeFragment : CameraFragment() {
                                                 }
                                             }
                                             1 -> {
-                                                val layoutParams = frameLayout.layoutParams as ViewGroup.MarginLayoutParams
-                                                layoutParams.width = frameLayout.width * 8 / 5
-                                                layoutParams.height = frameLayout.width
-                                                layoutParams.topMargin = (180f * resources.displayMetrics.density).toInt()
-                                                frameLayout.layoutParams = layoutParams
-                                                frameLayout.rotation = 90f
-                                                frameLayout.requestLayout()
-
-                                                frameLayout.visibility = View.VISIBLE
+//                                                val layoutParams = frameLayout.layoutParams as ViewGroup.MarginLayoutParams
+//                                                layoutParams.width = frameLayout.width * 8 / 5
+//                                                layoutParams.height = frameLayout.width
+//                                                layoutParams.topMargin = (180f * resources.displayMetrics.density).toInt()
+//                                                frameLayout.layoutParams = layoutParams
+//                                                frameLayout.rotation = 90f
+//                                                frameLayout.requestLayout()
+//
+//                                                frameLayout.visibility = View.VISIBLE
 
                                                 lineView.visibility = View.GONE;
                                             }
                                             2 -> {
                                                 lineView.visibility = View.GONE;
                                                 frameLayout.visibility = View.GONE
-                                                horizontalFrameLayout.visibility = View.GONE
                                             };
                                             3 -> {
                                                 lineView.visibility = View.GONE;
                                                 frameLayout.visibility = View.GONE
-                                                horizontalFrameLayout.visibility = View.GONE
                                             };
                                         }
                                     }
