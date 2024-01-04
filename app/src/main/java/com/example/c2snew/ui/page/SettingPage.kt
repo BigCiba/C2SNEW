@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,6 +37,7 @@ import com.example.c2snew.ui.home.LineView
 @Composable
 fun SettingPage(visible:Boolean,settingViewModel:SettingViewModel) {
     var saveImage by rememberSaveable { mutableStateOf(settingViewModel.getToggleValue("SaveImage") ?: true) }
+    var averageTime by rememberSaveable { mutableStateOf(settingViewModel.getAverageTime() ?: 0.5f) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -70,18 +72,66 @@ fun SettingPage(visible:Boolean,settingViewModel:SettingViewModel) {
                     SettingInput("a3", settingViewModel, modifier = Modifier.weight(1f))
                 }
             }
-//            item {
-//                SettingTag("Camera")
+            item {
+                SettingTag("Average time")
 //                Row {
 //                    SettingInput("Exposure", settingViewModel, modifier = Modifier.weight(1f))
 //                    Spacer(modifier = Modifier.width(20.dp))
 //                    SettingInput("FPS", settingViewModel, modifier = Modifier.weight(1f))
 //                }
-//                Row {
-//                    SettingInput("Gain", settingViewModel, modifier = Modifier.width(130.dp))
-//                    Spacer(modifier = Modifier.width(150.dp))
-//                }
-//            }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                )  {
+                    RadioButton(
+                        selected = averageTime == 0.5f,
+                        onClick = {
+                            settingViewModel.setAverageTime(0.5f)
+                            averageTime = 0.5f
+                        }
+                    )
+                    Text(
+                        text = "0.5",
+                        fontSize = TextUnit(20f, TextUnitType.Sp),
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    RadioButton(
+                        selected = averageTime == 1f,
+                        onClick = {
+                            settingViewModel.setAverageTime(1f)
+                            averageTime = 1f
+                        }
+                    )
+                    Text(
+                        text = "1",
+                        fontSize = TextUnit(20f, TextUnitType.Sp),
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    RadioButton(
+                        selected = averageTime == 2f,
+                        onClick = {
+                            settingViewModel.setAverageTime(2f)
+                            averageTime = 2f
+                        }
+                    )
+                    Text(
+                        text = "2",
+                        fontSize = TextUnit(20f, TextUnitType.Sp),
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    RadioButton(
+                        selected = averageTime == 5f,
+                        onClick = {
+                            settingViewModel.setAverageTime(5f)
+                            averageTime = 5f
+                        }
+                    )
+                    Text(
+                        text = "5",
+                        fontSize = TextUnit(20f, TextUnitType.Sp),
+                    )
+                }
+            }
             item {
                 SettingTag("Other")
 

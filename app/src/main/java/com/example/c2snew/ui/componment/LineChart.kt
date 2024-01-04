@@ -14,10 +14,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import co.yml.charts.common.model.Point
+import kotlin.math.abs
 
 @Composable
 fun LineChart(
@@ -38,11 +39,13 @@ fun LineChart(
     val textMeasurer = rememberTextMeasurer()
     var canvasScale by remember { mutableFloatStateOf(1f) }
     var canvasOffset by remember { mutableStateOf(Offset(0f, 0f)) }
+    var perpendicular by remember { mutableFloatStateOf(0f) }
     Canvas(modifier = Modifier
         .fillMaxSize()
         .zIndex(-1f)
         .pointerInput(Unit) {
-            detectTransformGestures { _, pan, zoom, _ ->
+            detectTransformGestures { offect, pan, zoom, _ ->
+                perpendicular = offect.x
                 val newScale = canvasScale * zoom
                 canvasScale = when {
                     newScale > 2f -> 2f
@@ -56,8 +59,14 @@ fun LineChart(
                 canvasOffset = if (canvasScale > 1) {
                     // 限制平移范围在原有显示内容的边界内
                     Offset(
-                        x = (canvasOffset.x + pan.x * canvasScale).coerceIn(-(scaledChartWidth - (size.width - 400f)), 0f),
-                        y = (canvasOffset.y + pan.y * canvasScale).coerceIn(-(scaledChartHeight - (size.height - 400f)), 0f)
+                        x = (canvasOffset.x + pan.x * canvasScale).coerceIn(
+                            -(scaledChartWidth - (size.width - 400f)),
+                            0f
+                        ),
+                        y = (canvasOffset.y + pan.y * canvasScale).coerceIn(
+                            -(scaledChartHeight - (size.height - 400f)),
+                            0f
+                        )
                     )
                 } else {
                     Offset(0f, 0f)
@@ -70,6 +79,20 @@ fun LineChart(
 
             val offset = Offset(140f, 50f)
             val chartSize = Size(size.width - 200f,size.height - 200f)
+            var offsetX =  offset.x.coerceAtLeast(perpendicular).coerceAtMost(offset.x+ chartSize.width)
+
+            // 虚线
+            val pathEffect = PathEffect.dashPathEffect(
+                intervals = floatArrayOf(10f, 10f), // 设置虚线的样式和间隔
+                phase = 0f // 设置虚线的起始偏移量
+            )
+            drawLine(
+                color = Color.Red,
+                start = Offset(offsetX, offset.y),
+                end = Offset(offsetX, offset.y + chartSize.height),
+                strokeWidth = 2.dp.toPx(),
+                pathEffect = pathEffect
+            )
 
             drawRect(
                 color = Color.Gray,
@@ -141,15 +164,25 @@ fun LineChart(
                     )
                 }
             }
+            var closePoints = mutableListOf<Offset>()
             lines.forEachIndexed {lineIndex, points ->
                 if (points.size >= 2) {
                     val path = Path()
                     val scaleX = chartSize.width / 1280f
                     val scaleY = chartSize.height / 255f
+
+                    var distance = 2000f
+                    var closestX = 0f
+                    var closestY = 0f
                     points.forEachIndexed { index, point ->
                         val x = point.x * scaleX + offset.x
                         val y = chartSize.height - point.y * scaleY + offset.y
 
+                        if (abs(x - offsetX)  < distance) {
+                            distance = abs(x - offsetX)
+                            closestX = x
+                            closestY = y
+                        }
                         // 第一个点使用 moveTo，其余的点使用 lineTo 连接
                         if (index == 0) {
                             path.moveTo(x, y)
@@ -157,9 +190,19 @@ fun LineChart(
                             path.lineTo(x, y)
                         }
                     }
+                    closePoints.add(Offset(closestX,closestY))
 
                     // 画线
                     drawPath(path = path, color = getLineColor(lineIndex), style = Stroke(width = 2.dp.toPx()))
+                }
+            }
+            for ((index, offset) in closePoints.withIndex()) {
+                if (offset.x != 2000f) {
+                    drawText(
+                        textMeasurer,
+                        String.format("%.2f", ((1f - (offset.y - 50f) / chartSize.height) * 10000f)),
+                        topLeft = Offset(offsetX, offset.y)
+                    )
                 }
             }
         }

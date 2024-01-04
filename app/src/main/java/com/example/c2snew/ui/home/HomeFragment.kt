@@ -58,6 +58,7 @@ import com.jiangdg.ausbc.camera.bean.CameraRequest
 import com.jiangdg.ausbc.utils.ToastUtils
 import com.jiangdg.ausbc.widget.AspectRatioTextureView
 import com.jiangdg.ausbc.widget.IAspectRatio
+import com.patrykandpatrick.vico.core.extension.setFieldValue
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -87,6 +88,8 @@ class HomeFragment : CameraFragment() {
 
     private var playing: Boolean = false
     private lateinit var cameraContainer: FrameLayout
+
+    private var accumulateData: ArrayList<List<Point>> = ArrayList()
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -97,6 +100,7 @@ class HomeFragment : CameraFragment() {
         val root: View = mViewBinding.root
         cameraContainer = mViewBinding.cameraViewContainer
 
+        // 相机预览数据回调
         previewCallback = object : IPreviewDataCallBack {
             override fun onPreviewData(
                 data: ByteArray?,
@@ -111,7 +115,6 @@ class HomeFragment : CameraFragment() {
                     byteBuffer.position(0)
                     val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                     bitmap?.copyPixelsFromBuffer(byteBuffer)
-//                    bitmapData = bitmap.asImageBitmap()
                     cameraViewModel.setBitmap(bitmap)
                     val averagedData = processData(data, width, height, format)
                     chartData = averagedData
@@ -119,14 +122,13 @@ class HomeFragment : CameraFragment() {
             }
         }
 
-        val frameLayout = root.findViewById<FrameLayout>(R.id.cameraViewContainer)
-
         // 在其他 Fragment 中获取共享的 ViewModel 实例
         dashboardViewModel = ViewModelProvider(requireActivity())[DashboardViewModel::class.java]
         cameraViewModel = ViewModelProvider(requireActivity())[CameraViewModel::class.java]
         settingViewModel = ViewModelProvider(requireActivity())[SettingViewModel::class.java]
         val lineView = root.findViewById<LineView>(R.id.LineView)
         val composeView = root.findViewById<ComposeView>(R.id.composeView)
+        // 嵌入compose布局
         composeView.setContent {
             Material3Theme {
                 val navList = listOf(
@@ -141,12 +143,8 @@ class HomeFragment : CameraFragment() {
                 var play by remember {
                     mutableStateOf<Boolean>(playing)
                 }
-                val scope = rememberCoroutineScope()
                 val snackbarHostState = remember { SnackbarHostState() }
                 val openAlertDialog = remember { mutableStateOf(false) }
-
-
-                val viewModel = remember { SettingViewModel() }
 
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
@@ -374,25 +372,13 @@ class HomeFragment : CameraFragment() {
                                                 }
                                             }
                                             1 -> {
-//                                                val layoutParams = frameLayout.layoutParams as ViewGroup.MarginLayoutParams
-//                                                layoutParams.width = frameLayout.width * 8 / 5
-//                                                layoutParams.height = frameLayout.width
-//                                                layoutParams.topMargin = (180f * resources.displayMetrics.density).toInt()
-//                                                frameLayout.layoutParams = layoutParams
-//                                                frameLayout.rotation = 90f
-//                                                frameLayout.requestLayout()
-//
-//                                                frameLayout.visibility = View.VISIBLE
-
                                                 lineView.visibility = View.GONE;
                                             }
                                             2 -> {
                                                 lineView.visibility = View.GONE;
-                                                frameLayout.visibility = View.GONE
                                             };
                                             3 -> {
                                                 lineView.visibility = View.GONE;
-                                                frameLayout.visibility = View.GONE
                                             };
                                         }
                                     }
@@ -408,9 +394,23 @@ class HomeFragment : CameraFragment() {
     override fun initView() {
         super.initView()
         // 直接在数据回调中更新数据会导致崩溃，估计是死循环了，所以用计时器异步更新
-        countDownTimer = object : CountDownTimer(Long.MAX_VALUE, 30) {
+        countDownTimer = object : CountDownTimer(Long.MAX_VALUE, 20) {
             override fun onTick(millisUntilFinished: Long) {
-                cameraViewModel.setData(chartData)
+//                cameraViewModel.setData(chartData)
+                accumulateData.add(chartData)
+                val ms = settingViewModel.getAverageTime()?.times(1000f)
+                var length = 1
+                if (ms != null) {
+                    length = (ms / 20f).toInt()
+                }
+                if (accumulateData.size >= length) {
+                    cameraViewModel.setData(processAccumulatedData())
+//                    accumulateData.removeAt(0)
+                    // 获取要删除的子列表
+                    val sublistToRemove = accumulateData.subList(0, accumulateData.size-length)
+                    // 清除子列表
+                    sublistToRemove.clear()
+                }
 //                cameraViewModel.setBitmap(bitmapData)
 //                cameraViewModel.setRawdata(rawData)
             }
@@ -493,26 +493,38 @@ class HomeFragment : CameraFragment() {
     }
 
     override fun getGravity(): Int = Gravity.TOP
-    private fun createImageBitmap(pixelData: ByteArray, width: Int, height: Int): ImageBitmap {
-        // Create a Bitmap from pixelData
-        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
 
-        // Set pixel values
-        for (x in 0 until width) {
-            for (y in 0 until height) {
-                val index = (y * width + x) * 4
-                val color = (pixelData[index].toInt() and 0xFF) shl 16 or
-                        ((pixelData[index + 1].toInt() and 0xFF) shl 8) or
-                        (pixelData[index + 2].toInt() and 0xFF) or
-                        ((pixelData[index + 3].toInt() and 0xFF) shl 24)
-                bitmap.setPixel(x, y, color)
+    // 获取平均数据
+    private fun processAccumulatedData(): List<Point> {
+        val numberOfLists = accumulateData.size
+        val numberOfPoints = accumulateData[0].size // 假设每个 List<Point> 长度相同
+
+        // 初始化用于存储平均值的列表
+        val averagePoints = ArrayList<Point>(numberOfPoints)
+
+        // 计算每个点的平均值
+        for (pointIndex in 0 until numberOfPoints) {
+            var averageX = 0f
+            var averageY = 0f
+
+            // 计算每个 List<Point> 中相同索引的点的平均值
+            for (listIndex in 0 until numberOfLists) {
+                val currentPoint = accumulateData[listIndex][pointIndex]
+                averageX += currentPoint.x
+                averageY += currentPoint.y
             }
+
+            // 计算平均值并添加到结果列表
+            averageX /= numberOfLists
+            averageY /= numberOfLists
+
+            val averagePoint = Point(averageX, averageY)
+            averagePoints.add(averagePoint)
         }
 
-        // Convert Bitmap to ImageBitmap
-        return bitmap.asImageBitmap()
+        return averagePoints
     }
-    // 图表
+
     private fun processData(byteArray: ByteArray, imageWidth: Int, imageHeight: Int,format: IPreviewDataCallBack.DataFormat): List<Point> {
         val averagedData = calculateAverageBrightnessValues(byteArray, imageWidth, imageHeight, format)
         var dataPoints = listOf<Point>()
@@ -528,20 +540,13 @@ class HomeFragment : CameraFragment() {
         } catch (e: NumberFormatException) {
             0
         }
-//        height = 800.coerceAtMost(height)
-//        height = height / 800 * imageHeight
         val width = try {
             settingViewModel.getValue("Width")?.toInt() ?: 0
         } catch (e: NumberFormatException) {
             0
         }
-//        Toast.makeText(context, "center${settingViewModel.getValue("Center")},${height},${width},${imageHeight}", Toast.LENGTH_SHORT).show()
-//        val height = 0
-//        val width = 0
         val min = max(height - width, 0)
         val max = min(height + width, imageHeight)
-//        val min = imageHeight / 2 - 20
-//        val max = imageHeight / 2 + 20
         if (format == IPreviewDataCallBack.DataFormat.RGBA) {
             val bytesPerPixel = 4
 
