@@ -84,6 +84,18 @@ fun SettingPage(visible:Boolean,settingViewModel:SettingViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 )  {
                     RadioButton(
+                        selected = averageTime == 0f,
+                        onClick = {
+                            settingViewModel.setAverageTime(0f)
+                            averageTime = 0f
+                        }
+                    )
+                    Text(
+                        text = "0s",
+                        fontSize = TextUnit(20f, TextUnitType.Sp),
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    RadioButton(
                         selected = averageTime == 0.5f,
                         onClick = {
                             settingViewModel.setAverageTime(0.5f)
@@ -91,7 +103,7 @@ fun SettingPage(visible:Boolean,settingViewModel:SettingViewModel) {
                         }
                     )
                     Text(
-                        text = "0.5",
+                        text = "0.5s",
                         fontSize = TextUnit(20f, TextUnitType.Sp),
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -103,10 +115,14 @@ fun SettingPage(visible:Boolean,settingViewModel:SettingViewModel) {
                         }
                     )
                     Text(
-                        text = "1",
+                        text = "1s",
                         fontSize = TextUnit(20f, TextUnitType.Sp),
                     )
-                    Spacer(modifier = Modifier.width(10.dp))
+                }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                )  {
                     RadioButton(
                         selected = averageTime == 2f,
                         onClick = {
@@ -115,7 +131,7 @@ fun SettingPage(visible:Boolean,settingViewModel:SettingViewModel) {
                         }
                     )
                     Text(
-                        text = "2",
+                        text = "2s",
                         fontSize = TextUnit(20f, TextUnitType.Sp),
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -127,7 +143,7 @@ fun SettingPage(visible:Boolean,settingViewModel:SettingViewModel) {
                         }
                     )
                     Text(
-                        text = "5",
+                        text = "5s",
                         fontSize = TextUnit(20f, TextUnitType.Sp),
                     )
                 }

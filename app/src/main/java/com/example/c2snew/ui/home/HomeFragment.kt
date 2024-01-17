@@ -396,20 +396,23 @@ class HomeFragment : CameraFragment() {
         // 直接在数据回调中更新数据会导致崩溃，估计是死循环了，所以用计时器异步更新
         countDownTimer = object : CountDownTimer(Long.MAX_VALUE, 20) {
             override fun onTick(millisUntilFinished: Long) {
-//                cameraViewModel.setData(chartData)
-                accumulateData.add(chartData)
                 val ms = settingViewModel.getAverageTime()?.times(1000f)
-                var length = 1
-                if (ms != null) {
-                    length = (ms / 20f).toInt()
-                }
-                if (accumulateData.size >= length) {
-                    cameraViewModel.setData(processAccumulatedData())
-//                    accumulateData.removeAt(0)
-                    // 获取要删除的子列表
-                    val sublistToRemove = accumulateData.subList(0, accumulateData.size-length)
-                    // 清除子列表
-                    sublistToRemove.clear()
+                if (ms == 0f) {
+                    cameraViewModel.setData(chartData)
+                } else {
+                    accumulateData.add(chartData)
+                    var length = 1
+                    if (ms != null) {
+                        length = (ms / 20f).toInt()
+                    }
+                    if (accumulateData.size >= length) {
+                        cameraViewModel.setData(processAccumulatedData())
+    //                    accumulateData.removeAt(0)
+                        // 获取要删除的子列表
+                        val sublistToRemove = accumulateData.subList(0, accumulateData.size-length)
+                        // 清除子列表
+                        sublistToRemove.clear()
+                    }
                 }
 //                cameraViewModel.setBitmap(bitmapData)
 //                cameraViewModel.setRawdata(rawData)

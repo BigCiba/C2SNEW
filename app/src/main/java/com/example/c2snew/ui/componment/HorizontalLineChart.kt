@@ -14,6 +14,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -25,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import co.yml.charts.common.model.Point
+import kotlin.math.abs
 
 @Composable
 fun HorizontalLineChart(
@@ -37,11 +39,13 @@ fun HorizontalLineChart(
     val textMeasurer = rememberTextMeasurer()
     var canvasScale by remember { mutableFloatStateOf(1f) }
     var canvasOffset by remember { mutableStateOf(Offset(0f, 0f)) }
+    var perpendicular by remember { mutableFloatStateOf(0f) }
     Canvas(modifier = Modifier
         .fillMaxSize()
         .zIndex(-1f)
         .pointerInput(Unit) {
-            detectTransformGestures { _, pan, zoom, _ ->
+            detectTransformGestures { offset, pan, zoom, _ ->
+                perpendicular = offset.y
                 val newScale = canvasScale * zoom
                 canvasScale = when {
                     newScale > 2f -> 2f
@@ -68,9 +72,21 @@ fun HorizontalLineChart(
             canvas.translate(canvasOffset.x, canvasOffset.y)
             val offset = Offset(140f, 50f)
             val chartSize = Size(size.height - 200f,size.width - 200f)
+            var offsetX =  offset.x.coerceAtLeast(perpendicular).coerceAtMost(offset.x+ chartSize.width)
 
             rotate(degrees = 90F, pivot = Offset(size.width * 0.5f, size.width * 0.5f)) {
-
+                // 虚线
+                val pathEffect = PathEffect.dashPathEffect(
+                    intervals = floatArrayOf(10f, 10f), // 设置虚线的样式和间隔
+                    phase = 0f // 设置虚线的起始偏移量
+                )
+                drawLine(
+                    color = Color.Red,
+                    start = Offset(offsetX, offset.y),
+                    end = Offset(offsetX, offset.y + chartSize.height),
+                    strokeWidth = 2.dp.toPx(),
+                    pathEffect = pathEffect
+                )
                 drawRect(
                     color = Color.Gray,
                     topLeft = offset,
@@ -93,6 +109,7 @@ fun HorizontalLineChart(
                     topLeft = Offset(offset.x + chartSize.width * 0.5f - 200f, offset.y + chartSize.height + 100f )
                 )
 
+                val gridHeight = chartSize.height / (yAxis.size - 1)
                 for ((index, item) in yAxis.withIndex()) {
                     val startY = offset.y + index * chartSize.height / (yAxis.size - 1)  // 调整起始点的 Y 轴位置
                     drawLine(
@@ -108,7 +125,20 @@ fun HorizontalLineChart(
                         style = TextStyle(textAlign = TextAlign.Center),
                         topLeft = Offset(offset.x - 100f, startY - 20f)
                     )
+                    if (index <  yAxis.size - 1) {
+                        for (i in 1..3) {
+                            val gridY = startY + (gridHeight / 4) * i
+                            drawLine(
+                                color = Color.Gray,
+                                start = Offset(offset.x-10f, gridY),
+                                end = Offset(offset.x, gridY),
+                                strokeWidth = 1.dp.toPx(),
+                            )
+                        }
+                    }
                 }
+                // 横坐标分割
+                val gridWidth = chartSize.width / (xAxis.size - 1)
                 for ((index, item) in xAxis.withIndex()) {
                     val startX = offset.x + index * chartSize.width / (xAxis.size - 1)  // 调整起始点的 Y 轴位置
                     drawLine(
@@ -124,6 +154,17 @@ fun HorizontalLineChart(
                         style = TextStyle(textAlign = TextAlign.Center),
                         topLeft = Offset(startX - 50f, chartSize.height + offset.y + 40f)
                     )
+                    if (index <  xAxis.size - 1) {
+                        for (i in 1..7) {
+                            val gridX = startX + (gridWidth / 8) * i
+                            drawLine(
+                                color = Color.Gray,
+                                start = Offset(gridX, chartSize.height + offset.y),
+                                end = Offset(gridX, chartSize.height + offset.y + 10f),
+                                strokeWidth = 1.dp.toPx(),
+                            )
+                        }
+                    }
                 }
                 // 图例
                 if (lines.size > 1) {
@@ -160,6 +201,50 @@ fun HorizontalLineChart(
 
                         // 画线
                         drawPath(path = path, color = getLineColor(lineIndex), style = Stroke(width = 2.dp.toPx()))
+                    }
+                }
+
+
+                // 显示垂线
+                var closePoints = mutableListOf<Offset>()
+                lines.forEachIndexed {lineIndex, points ->
+                    if (points.size >= 2) {
+                        val path = Path()
+                        val scaleX = chartSize.width / 1280f
+                        val scaleY = chartSize.height / 255f
+
+                        var distance = 2000f
+                        var closestX = 0f
+                        var closestY = 0f
+                        points.forEachIndexed { index, point ->
+                            val x = point.x * scaleX + offset.x
+                            val y = chartSize.height - point.y * scaleY + offset.y
+
+                            if (abs(x - offsetX)  < distance) {
+                                distance = abs(x - offsetX)
+                                closestX = x
+                                closestY = y
+                            }
+                            // 第一个点使用 moveTo，其余的点使用 lineTo 连接
+                            if (index == 0) {
+                                path.moveTo(x, y)
+                            } else {
+                                path.lineTo(x, y)
+                            }
+                        }
+                        closePoints.add(Offset(closestX,closestY))
+
+                        // 画线
+                        drawPath(path = path, color = getLineColor(lineIndex), style = Stroke(width = 2.dp.toPx()))
+                    }
+                }
+                for ((index, offset) in closePoints.withIndex()) {
+                    if (offset.x != 2000f) {
+                        drawText(
+                            textMeasurer,
+                            String.format("%.2f", ((1f - (offset.y - 50f) / chartSize.height) * 10000f)),
+                            topLeft = Offset(offsetX, offset.y)
+                        )
                     }
                 }
             }

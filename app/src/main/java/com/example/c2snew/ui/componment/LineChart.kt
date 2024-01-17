@@ -44,8 +44,8 @@ fun LineChart(
         .fillMaxSize()
         .zIndex(-1f)
         .pointerInput(Unit) {
-            detectTransformGestures { offect, pan, zoom, _ ->
-                perpendicular = offect.x
+            detectTransformGestures { offset, pan, zoom, _ ->
+                perpendicular = offset.x
                 val newScale = canvasScale * zoom
                 canvasScale = when {
                     newScale > 2f -> 2f
@@ -116,6 +116,7 @@ fun LineChart(
                 topLeft = Offset(offset.x + chartSize.width * 0.5f - 200f, offset.y + chartSize.height + 100f )
             )
 
+            val gridHeight = chartSize.height / (yAxis.size - 1)
             for ((index, item) in yAxis.withIndex()) {
                 val startY = offset.y + index * chartSize.height / (yAxis.size - 1)  // 调整起始点的 Y 轴位置
                 drawLine(
@@ -131,7 +132,20 @@ fun LineChart(
                     style = TextStyle(textAlign = TextAlign.Center),
                     topLeft = Offset(offset.x - 100f, startY - 20f)
                 )
+                if (index <  yAxis.size - 1) {
+                    for (i in 1..3) {
+                        val gridY = startY + (gridHeight / 4) * i
+                        drawLine(
+                            color = Color.Gray,
+                            start = Offset(offset.x-10f, gridY),
+                            end = Offset(offset.x, gridY),
+                            strokeWidth = 1.dp.toPx(),
+                        )
+                    }
+                }
             }
+            // 横坐标分割
+            val gridWidth = chartSize.width / (xAxis.size - 1)
             for ((index, item) in xAxis.withIndex()) {
                 val startX = offset.x + index * chartSize.width / (xAxis.size - 1)  // 调整起始点的 Y 轴位置
                 drawLine(
@@ -147,6 +161,17 @@ fun LineChart(
                     style = TextStyle(textAlign = TextAlign.Center),
                     topLeft = Offset(startX - 50f, chartSize.height + offset.y + 40f)
                 )
+                if (index <  xAxis.size - 1) {
+                    for (i in 1..3) {
+                        val gridX = startX + (gridWidth / 4) * i
+                        drawLine(
+                            color = Color.Gray,
+                            start = Offset(gridX, chartSize.height + offset.y),
+                            end = Offset(gridX, chartSize.height + offset.y + 10f),
+                            strokeWidth = 1.dp.toPx(),
+                        )
+                    }
+                }
             }
             // 图例
             if (lines.size > 1) {
@@ -164,6 +189,7 @@ fun LineChart(
                     )
                 }
             }
+            // 显示垂线
             var closePoints = mutableListOf<Offset>()
             lines.forEachIndexed {lineIndex, points ->
                 if (points.size >= 2) {
