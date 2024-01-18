@@ -66,6 +66,5 @@ dependencies {
     implementation 'co.yml:ycharts:2.1.0'
     implementation 'com.github.jaikeerthick:Composable-Graphs:v1.0'
     implementation "com.github.tehras:charts:0.2.4-alpha"
-    implementation "androidx.datastore:datastore-preferences:1.0.0-alpha08"
-    implementation "androidx.datastore:datastore-preferences-rxjava2:1.0.0-rc02"
+    implementation "androidx.datastore:datastore-preferences:1.1.0-beta01"
 }

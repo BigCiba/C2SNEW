@@ -1,7 +1,7 @@
 package com.example.c2snew.ui.home
 
+import android.content.Context.MODE_PRIVATE
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.Environment
@@ -28,15 +28,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import co.yml.charts.common.model.Point
 import com.example.c2snew.CameraViewModel
 import com.example.c2snew.R
@@ -48,17 +46,17 @@ import com.example.c2snew.ui.page.MainPage
 import com.example.c2snew.ui.page.Raw
 import com.example.c2snew.ui.page.SettingPage
 import com.example.c2snew.ui.page.Spectrum
+import com.example.c2snew.ui.page.dataStore
 import com.example.c2snew.ui.theme.Material3Theme
 import com.jiangdg.ausbc.MultiCameraClient
 import com.jiangdg.ausbc.base.CameraFragment
 import com.jiangdg.ausbc.callback.ICameraStateCallBack
-import com.jiangdg.ausbc.callback.ICaptureCallBack
 import com.jiangdg.ausbc.callback.IPreviewDataCallBack
 import com.jiangdg.ausbc.camera.bean.CameraRequest
 import com.jiangdg.ausbc.utils.ToastUtils
 import com.jiangdg.ausbc.widget.AspectRatioTextureView
 import com.jiangdg.ausbc.widget.IAspectRatio
-import com.patrykandpatrick.vico.core.extension.setFieldValue
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -126,7 +124,34 @@ class HomeFragment : CameraFragment() {
         dashboardViewModel = ViewModelProvider(requireActivity())[DashboardViewModel::class.java]
         cameraViewModel = ViewModelProvider(requireActivity())[CameraViewModel::class.java]
         settingViewModel = ViewModelProvider(requireActivity())[SettingViewModel::class.java]
+        // 应用用户配置
+        val sharedPreferences =
+            context?.getSharedPreferences("user", MODE_PRIVATE)
+        if (sharedPreferences!= null) {
+            sharedPreferences.getString("Center", "")
+                ?.let { settingViewModel.setValue("Center", it) }
+            sharedPreferences.getString("Width", "20")
+                ?.let { settingViewModel.setValue("Width", it) }
+            sharedPreferences.getString("a0", "")
+                ?.let { settingViewModel.setValue("a0", it) }
+            sharedPreferences.getString("a1", "")
+                ?.let { settingViewModel.setValue("a1", it) }
+            sharedPreferences.getString("a2", "")
+                ?.let { settingViewModel.setValue("a2", it) }
+            sharedPreferences.getString("a3", "")
+                ?.let { settingViewModel.setValue("a3", it) }
+            sharedPreferences.getBoolean("SaveImage", true)
+                ?.let { settingViewModel.toggleValue("SaveImage", it) }
+            sharedPreferences.getFloat("AverageTime", 0.5f)
+                ?.let { settingViewModel.setAverageTime( it) }
+        }
         val lineView = root.findViewById<LineView>(R.id.LineView)
+        // 画框
+        val center = settingViewModel.getValue("Center")
+        val width = settingViewModel.getValue("Width")
+        if (center != null && center != "" && width != null && width != "") {
+            lineView.setLineCoordinates(center.toFloat(),width.toFloat())
+        }
         val composeView = root.findViewById<ComposeView>(R.id.composeView)
         // 嵌入compose布局
         composeView.setContent {
@@ -204,6 +229,59 @@ class HomeFragment : CameraFragment() {
                                     }) {
                                         Icon(
                                             painter = painterResource(id = R.drawable.delete),
+                                            contentDescription = "Save"
+                                        )
+                                    }
+                                }else {
+                                    IconButton(onClick = {
+                                        val center = settingViewModel.getValue("Center")
+                                        val width = settingViewModel.getValue("Width")
+                                        val a0 = settingViewModel.getValue("a0")
+                                        val a1 = settingViewModel.getValue("a1")
+                                        val a2 = settingViewModel.getValue("a2")
+                                        val a3 = settingViewModel.getValue("a3")
+                                        val saveImage = settingViewModel.getToggleValue("SaveImage")
+                                        val averageTime = settingViewModel.getAverageTime()
+
+                                        //获取SharedPreferences对象
+                                        val sharedPreferences =
+                                            context?.getSharedPreferences("user", MODE_PRIVATE)
+                                        //获取Editor对象的引用
+                                        val editor = sharedPreferences?.edit()
+                                        //将获取过来的值放入文件
+                                        if (editor != null) {
+                                            if (center != null) {
+                                                editor.putString("Center",center)
+                                            }
+                                            if (width != null) {
+                                                editor.putString("Width",width)
+                                            }
+                                            if (a0 != null) {
+                                                editor.putString("a0",a0)
+                                            }
+                                            if (a1 != null) {
+                                                editor.putString("a1",a1)
+                                            }
+                                            if (a2 != null) {
+                                                editor.putString("a2",a2)
+                                            }
+                                            if (a3 != null) {
+                                                editor.putString("a3",a3)
+                                            }
+                                            if (saveImage != null) {
+                                                editor.putBoolean("SaveImage",saveImage)
+                                            }
+                                            if (averageTime != null) {
+                                                editor.putFloat("AverageTime",averageTime)
+                                            }
+                                            // 提交数据
+                                            editor.commit()
+                                        }
+
+                                        Toast.makeText(context, "saved successfully", Toast.LENGTH_SHORT).show()
+                                    }) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.save),
                                             contentDescription = "Save"
                                         )
                                     }
@@ -361,6 +439,7 @@ class HomeFragment : CameraFragment() {
                                                 getCurrentCamera()?.setRenderSize(1280,800)
                                                 lineView.visibility = View.VISIBLE;
 
+                                                // 画框
                                                 val center = settingViewModel.getValue("Center")
                                                 val width = settingViewModel.getValue("Width")
                                                 if (center != null && center != "" && width != null && width != "") {
