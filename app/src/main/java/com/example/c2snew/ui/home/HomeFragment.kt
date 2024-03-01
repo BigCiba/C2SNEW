@@ -81,6 +81,7 @@ class HomeFragment : CameraFragment() {
     private lateinit var countDownTimer: CountDownTimer
     private var isTimerRunning = false
     private var chartData: List<Point> = listOf(Point(0f,0f))
+    private var totalChartData: List<Point> = listOf(Point(0f,0f))
     private lateinit var bitmapData: ImageBitmap
     private lateinit var previewCallback: IPreviewDataCallBack
 
@@ -88,6 +89,7 @@ class HomeFragment : CameraFragment() {
     private lateinit var cameraContainer: FrameLayout
 
     private var accumulateData: ArrayList<List<Point>> = ArrayList()
+    private var totalAccumulateData: ArrayList<List<Point>> = ArrayList()
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -115,7 +117,8 @@ class HomeFragment : CameraFragment() {
                     bitmap?.copyPixelsFromBuffer(byteBuffer)
                     cameraViewModel.setBitmap(bitmap)
                     val averagedData = processData(data, width, height, format)
-                    chartData = averagedData
+                    chartData = averagedData[0]
+                    totalChartData =  averagedData[1]
                 }
             }
         }
@@ -307,6 +310,7 @@ class HomeFragment : CameraFragment() {
                                         val currentTime = SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(Date())
                                         val filePath = File(downloadFolder, "spectrochip/${it}-${currentTime}.csv").absolutePath
                                         val pointsData = (cameraViewModel.chartPointList.value)
+                                        val totalChartPointList = cameraViewModel.totalChartPointList.value
                                         val historyData = cameraViewModel.historyList.value
                                         val imageData: Bitmap? = cameraViewModel.bitmapData.value
                                         val imageListData: List<Bitmap?> = cameraViewModel.imageList.value ?: emptyList()
@@ -326,6 +330,12 @@ class HomeFragment : CameraFragment() {
                                                     })
                                                 }
                                             }
+                                            if (totalChartPointList != null) {
+                                                if (totalChartPointList.isNotEmpty()) {
+                                                    add(expandList(totalChartPointList,1280))
+                                                }
+                                            }
+
                                         }
                                         if (combinedData.isNotEmpty()) {
                                             val sa0 = settingViewModel.getValue("a0")
@@ -353,6 +363,7 @@ class HomeFragment : CameraFragment() {
                                             for (i in 1..combinedData.size) {
                                                 csvContent.append(",Sample$i")
                                             }
+                                            // 相加数据
                                             csvContent.appendln()
                                             // 遍历每个点，将其坐标添加到 CSV 内容中
                                             val maxDataSize = combinedData.maxOfOrNull { it.size } ?: 0
@@ -478,8 +489,10 @@ class HomeFragment : CameraFragment() {
                 val ms = settingViewModel.getAverageTime()?.times(1000f)
                 if (ms == 0f) {
                     cameraViewModel.setData(chartData)
+                    cameraViewModel.setTotalData(totalChartData)
                 } else {
                     accumulateData.add(chartData)
+                    totalAccumulateData.add(totalChartData)
                     var length = 1
                     if (ms != null) {
                         length = (ms / 20f).toInt()
@@ -489,6 +502,14 @@ class HomeFragment : CameraFragment() {
     //                    accumulateData.removeAt(0)
                         // 获取要删除的子列表
                         val sublistToRemove = accumulateData.subList(0, accumulateData.size-length)
+                        // 清除子列表
+                        sublistToRemove.clear()
+                    }
+                    if (totalAccumulateData.size >= length) {
+                        cameraViewModel.setTotalData(processTotalAccumulatedData())
+                        //                    accumulateData.removeAt(0)
+                        // 获取要删除的子列表
+                        val sublistToRemove = totalAccumulateData.subList(0, totalAccumulateData.size-length)
                         // 清除子列表
                         sublistToRemove.clear()
                     }
@@ -606,17 +627,54 @@ class HomeFragment : CameraFragment() {
 
         return averagePoints
     }
+    private fun processTotalAccumulatedData(): List<Point> {
+        val numberOfLists = totalAccumulateData.size
+        val numberOfPoints = totalAccumulateData[0].size // 假设每个 List<Point> 长度相同
 
-    private fun processData(byteArray: ByteArray, imageWidth: Int, imageHeight: Int,format: IPreviewDataCallBack.DataFormat): List<Point> {
-        val averagedData = calculateAverageBrightnessValues(byteArray, imageWidth, imageHeight, format)
-        var dataPoints = listOf<Point>()
-        for (x in averagedData.indices ) {
-            dataPoints = dataPoints+Point(x.toFloat(),averagedData[x])
+        // 初始化用于存储平均值的列表
+        val averagePoints = ArrayList<Point>(numberOfPoints)
+
+        // 计算每个点的平均值
+        for (pointIndex in 0 until numberOfPoints) {
+            var averageX = 0f
+            var averageY = 0f
+
+            // 计算每个 List<Point> 中相同索引的点的平均值
+            for (listIndex in 0 until numberOfLists) {
+                val currentPoint = totalAccumulateData[listIndex][pointIndex]
+                averageX += currentPoint.x
+                averageY += currentPoint.y
+            }
+
+            // 计算平均值并添加到结果列表
+            averageX /= numberOfLists
+            averageY /= numberOfLists
+
+            val averagePoint = Point(averageX, averageY)
+            averagePoints.add(averagePoint)
         }
-        return dataPoints;
+
+        return averagePoints
     }
-    private fun calculateAverageBrightnessValues(data: ByteArray, imageWidth: Int, imageHeight: Int,format: IPreviewDataCallBack.DataFormat): FloatArray {
+
+    private fun processData(byteArray: ByteArray, imageWidth: Int, imageHeight: Int,format: IPreviewDataCallBack.DataFormat): ArrayList<List<Point>> {
+        val values = calculateAverageBrightnessValues(byteArray, imageWidth, imageHeight, format)
+        var dataPoints = listOf<Point>()
+        var totalPoints = listOf<Point>()
+        val result = arrayListOf<List<Point>>()
+        for (x in values[0].indices ) {
+            dataPoints = dataPoints+Point(x.toFloat(),values[0][x])
+        }
+        for (x in values[1].indices ) {
+            totalPoints = totalPoints+Point(x.toFloat(),values[1][x])
+        }
+        result.add(dataPoints)
+        result.add(totalPoints)
+        return result;
+    }
+    private fun calculateAverageBrightnessValues(data: ByteArray, imageWidth: Int, imageHeight: Int,format: IPreviewDataCallBack.DataFormat): ArrayList<FloatArray> {
         val averages = FloatArray(imageWidth) // 用于存储每个 X 轴上的平均亮度值
+        val total = FloatArray(imageWidth)
         var height = try {
             settingViewModel.getValue("Center")?.toInt() ?: 0
         } catch (e: NumberFormatException) {
@@ -655,6 +713,7 @@ class HomeFragment : CameraFragment() {
                     average =  sum / (max - min)
                 }
                 averages[x] = average
+                total[x] = sum
             }
         } else {
             val bytesPerPixel = 2
@@ -676,11 +735,13 @@ class HomeFragment : CameraFragment() {
                     average =  sum / (max - min)
                 }
                 averages[x] = average
+                total[x] = sum
             }
         }
-
-
-        return averages
+        val result = arrayListOf<FloatArray>()
+        result.add(averages)
+        result.add(total)
+        return result
     }
     fun linearInterpolation(p1: Point, p2: Point, factor: Float): Point {
         val diffY = p2.y - p1.y

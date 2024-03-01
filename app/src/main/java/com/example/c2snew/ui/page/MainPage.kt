@@ -33,10 +33,11 @@ import kotlin.math.pow
 @SuppressLint("RememberReturnType")
 @Composable
 fun MainPage(visible:Boolean, viewModel: CameraViewModel,settingModel:SettingViewModel) {
-    val titles = listOf("Pixel", "W1", "W2")
+    val titles = listOf("Pixel", "W1", "W2", "T")
     var state by remember { mutableIntStateOf(0) }
 
     val pointsData by viewModel.chartPointList.observeAsState(initial = listOf(Point(0f,0f)))
+    val totalPintsData by viewModel.totalChartPointList.observeAsState(initial = listOf(Point(0f,0f)))
     val historyData by viewModel.historyList.observeAsState(initial = emptyList())
     val bitmapData by viewModel.bitmapData.observeAsState()
 
@@ -82,26 +83,60 @@ fun MainPage(visible:Boolean, viewModel: CameraViewModel,settingModel:SettingVie
             .background(Color.Black)
         )
         val combinedData: List<List<Point>> = mutableListOf<List<Point>>().apply {
-            if (pointsData.isNotEmpty()) {
-                add(pointsData)
-            }
-            if (historyData.isNotEmpty()) {
-                addAll(historyData)
+            if (state == 3) {
+                if (totalPintsData.isNotEmpty()) {
+                    add(totalPintsData)
+                }
+            } else {
+                if (pointsData.isNotEmpty()) {
+                    add(pointsData)
+                }
+                if (historyData.isNotEmpty()) {
+                    addAll(historyData)
+                }
             }
         }
         var xTitle = when(state) {
             0-> "Pixel"
             1-> "Wavelength"
             2-> "Wavelength"
+            3-> "Pixel"
             else -> "Pixel"
+        }
+        val width = try {
+            settingModel.getValue("Width")?.toInt() ?: 0
+        } catch (e: NumberFormatException) {
+            0
+        }
+        val totalList = mutableListOf<String>().apply {
+            add((10 * width + 1).toString() + "k")
+            add((8 * width + 1).toString() + "k")
+            add((6 * width + 1).toString() + "k")
+            add((4 * width + 1).toString() + "k")
+            add((2 * width + 1).toString() + "k")
+            add("0")
+        }
+        var yAxis = when(state) {
+            3-> totalList
+            else -> listOf("10k", "8k", "6k", "4k", "2k", "0")
+        }
+        var ySize = when(state) {
+            3-> 255f * (2 * width + 1)
+            else -> 255f
+        }
+        var yScale = when(state) {
+            3-> (2 * width + 1).toFloat()
+            else -> 1f
         }
         LineChart(
             xAxis = xList,
 //            yAxis = listOf("255", "204", "153", "102", "51", "0"),
-            yAxis = listOf("10k", "8k", "6k", "4k", "2k", "0"),
+            yAxis = yAxis,
             xTitle = xTitle,
             yTitle = "",
-            lines = combinedData
+            lines = combinedData,
+            ySize = ySize,
+            yScale = yScale
         )
     }
 }

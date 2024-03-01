@@ -35,6 +35,8 @@ fun LineChart(
     yAxis: List<String>,
     xTitle: String,
     yTitle: String,
+    ySize: Float = 255f,
+    yScale: Float = 1f
 ) {
     val textMeasurer = rememberTextMeasurer()
     var canvasScale by remember { mutableFloatStateOf(1f) }
@@ -128,9 +130,9 @@ fun LineChart(
                 drawText(
                     textMeasurer,
                     item,
-                    size = Size(80f,40f),
+                    size = Size(120f,40f),
                     style = TextStyle(textAlign = TextAlign.Center),
-                    topLeft = Offset(offset.x - 100f, startY - 20f)
+                    topLeft = Offset(offset.x - 120f, startY - 20f)
                 )
                 if (index <  yAxis.size - 1) {
                     for (i in 1..3) {
@@ -195,7 +197,7 @@ fun LineChart(
                 if (points.size >= 2) {
                     val path = Path()
                     val scaleX = chartSize.width / 1280f
-                    val scaleY = chartSize.height / 255f
+                    val scaleY = chartSize.height / ySize
 
                     var distance = 2000f
                     var closestX = 0f
@@ -226,7 +228,7 @@ fun LineChart(
                 if (offset.x != 2000f) {
                     drawText(
                         textMeasurer,
-                        String.format("%.2f", ((1f - (offset.y - 50f) / chartSize.height) * 10000f)),
+                        String.format("%.2f", ((1f - (offset.y - 50f) / chartSize.height) * (10000f * yScale))),
                         topLeft = Offset(offsetX, offset.y)
                     )
                 }

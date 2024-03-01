@@ -19,6 +19,7 @@ class CameraViewModel : ViewModel(){
 
     // 图表数据
     private val _chartPointList = MutableLiveData<List<Point>>()
+    private val _totalChartPointList = MutableLiveData<List<Point>>()
     // 图表历史数据
     private val _historyList = MutableLiveData<List<List<Point>>>().apply {
         value = emptyList() // 初始值设为空列表
@@ -32,6 +33,12 @@ class CameraViewModel : ViewModel(){
 
     fun setData(data: List<Point>) {
         _chartPointList.value = data
+    }
+    val totalChartPointList: LiveData<List<Point>>
+        get() = _totalChartPointList
+
+    fun setTotalData(data: List<Point>) {
+        _totalChartPointList.value = data
     }
 
     fun saveHistory(data: List<Point>) {
